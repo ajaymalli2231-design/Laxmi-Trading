@@ -4,9 +4,11 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Create Android project
+        script: flutter create --platforms=android --project-name=laxmi_trading .
       - name: Get packages
         script: flutter pub get
       - name: Build APK
-        script: flutter build apk --release -t main.dart
+        script: flutter build apk --debug -t main.dart
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-debug.apk
