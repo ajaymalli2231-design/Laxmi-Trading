@@ -1,0 +1,12 @@
+workflows:
+  android-apk:
+    name: Laxmi Trading Android APK
+    environment:
+      flutter: stable
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Build APK
+        script: flutter build apk --release -t main.dart
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
