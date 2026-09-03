@@ -279,7 +279,7 @@ class MarketWatchScreen extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// STOCK BUY / SELL TERMINAL
+// STOCK DETAILS
 // -----------------------------------------------------------------------------
 class DetailedStockScreen extends StatefulWidget {
   final UserAccount user;
@@ -404,7 +404,7 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
 }
 
 // -----------------------------------------------------------------------------
-// POSITIONS & LIVE REAL-TIME P&L
+// POSITIONS
 // -----------------------------------------------------------------------------
 class PortfolioScreen extends StatelessWidget {
   final UserAccount user;
@@ -477,7 +477,7 @@ class PortfolioScreen extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// WALLET (DEPOSIT & WITHDRAWAL SCREEN)
+// WALLET SCREEN
 // -----------------------------------------------------------------------------
 class WalletScreen extends StatefulWidget {
   final UserAccount user;
@@ -507,4 +507,4 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
         ),
         actions: [
-          TextButt
+          TextButton(onPressed: () => Navigator.pop(context), child: const
