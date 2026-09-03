@@ -26,9 +26,6 @@ class LaxmiTradingApp extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// USER DATA MODEL
-// -----------------------------------------------------------------------------
 class UserAccount {
   String name;
   String phone;
@@ -47,7 +44,6 @@ class UserAccount {
   });
 }
 
-// Global User Database
 List<UserAccount> globalUsers = [
   UserAccount(
     name: 'Ajay (Admin)',
@@ -67,9 +63,6 @@ List<UserAccount> globalUsers = [
   ),
 ];
 
-// -----------------------------------------------------------------------------
-// STOCK MODEL
-// -----------------------------------------------------------------------------
 class StockItem {
   final String symbol;
   final String segment;
@@ -78,7 +71,6 @@ class StockItem {
   final int lotSize;
   double rsi;
   String signal;
-  List<double> history;
 
   StockItem({
     required this.symbol,
@@ -88,13 +80,9 @@ class StockItem {
     required this.lotSize,
     this.rsi = 55.0,
     this.signal = 'NEUTRAL',
-    List<double>? history,
-  }) : history = history ?? [price - 2, price - 1, price, price + 1, price];
+  });
 }
 
-// -----------------------------------------------------------------------------
-// 1. AUTHENTICATION SCREEN
-// -----------------------------------------------------------------------------
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -113,7 +101,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (phone.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Mobile Number and Password')),
+        const SnackBar(content: Text('Enter Mobile Number and Password')),
       );
       return;
     }
@@ -129,7 +117,7 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid Credentials! Check Mobile Number or Password.')),
+        const SnackBar(content: Text('Invalid Mobile Number or Password')),
       );
     }
   }
@@ -150,16 +138,11 @@ class _AuthScreenState extends State<AuthScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
             ),
-            const Text('Institutional Order Execution Platform', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 30),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Mobile Number',
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -167,12 +150,11 @@ class _AuthScreenState extends State<AuthScreen> {
               obscureText: _isObscured,
               decoration: InputDecoration(
                 labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock),
+                border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   icon: Icon(_isObscured ? Icons.visibility : Icons.visibility_off),
                   onPressed: () => setState(() => _isObscured = !_isObscured),
                 ),
-                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 24),
@@ -182,7 +164,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               onPressed: _handleLogin,
-              child: const Text('LOGIN TO TERMINAL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text('LOGIN TO TERMINAL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -191,9 +173,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 2. MAIN DASHBOARD
-// -----------------------------------------------------------------------------
 class MainDashboard extends StatefulWidget {
   final UserAccount user;
   const MainDashboard({super.key, required this.user});
@@ -218,29 +197,11 @@ class _MainDashboardState extends State<MainDashboard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(widget.user.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                if (widget.user.isAdmin) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(4)),
-                    child: const Text('ADMIN', style: TextStyle(fontSize: 9, color: Colors.black, fontWeight: FontWeight.bold)),
-                  )
-                ]
-              ],
-            ),
-            Text(
-              widget.user.isAdmin
-                  ? 'System Administration Active'
-                  : 'Fund: ₹${widget.user.balance.toStringAsFixed(2)} | Limit: ₹${widget.user.limit.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 11, color: Colors.greenAccent),
-            ),
-          ],
+        title: Text(
+          widget.user.isAdmin
+              ? 'Admin Dashboard (${widget.user.name})'
+              : 'Fund: ₹${widget.user.balance.toStringAsFixed(2)} | Limit: ₹${widget.user.limit.toStringAsFixed(2)}',
+          style: const TextStyle(fontSize: 14),
         ),
         actions: [
           IconButton(
@@ -258,16 +219,13 @@ class _MainDashboardState extends State<MainDashboard> {
           const BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Watchlist'),
           const BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Positions'),
           if (widget.user.isAdmin)
-            const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin Panel'),
+            const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
         ],
       ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// 3. MARKET WATCH
-// -----------------------------------------------------------------------------
 class MarketWatchScreen extends StatefulWidget {
   final UserAccount user;
   const MarketWatchScreen({super.key, required this.user});
@@ -277,28 +235,24 @@ class MarketWatchScreen extends StatefulWidget {
 }
 
 class _MarketWatchScreenState extends State<MarketWatchScreen> {
-  Timer? _fetchTimer;
+  Timer? _timer;
   List<StockItem> stocks = [
     StockItem(symbol: "NIFTY 50", segment: "NSE INDEX", price: 22450.0, change: 12.0, lotSize: 50, rsi: 62.4, signal: 'BULLISH'),
     StockItem(symbol: "BANKNIFTY", segment: "NSE INDEX", price: 47800.0, change: -30.0, lotSize: 15, rsi: 41.2, signal: 'BEARISH'),
     StockItem(symbol: "SENSEX", segment: "BSE INDEX", price: 73800.0, change: 45.0, lotSize: 10, rsi: 58.0, signal: 'NEUTRAL'),
     StockItem(symbol: "CRUDEOIL FUT", segment: "MCX FUT", price: 6450.0, change: 85.0, lotSize: 100, rsi: 68.5, signal: 'STRONG BUY'),
-    StockItem(symbol: "GOLD FUT", segment: "MCX FUT", price: 72150.0, change: -120.0, lotSize: 1, rsi: 38.1, signal: 'OVERSOLD'),
-    StockItem(symbol: "RELIANCE EQ", segment: "NSE STK", price: 2980.0, change: 5.5, lotSize: 1, rsi: 54.2, signal: 'NEUTRAL'),
   ];
 
   @override
   void initState() {
     super.initState();
-    _fetchTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
           for (var s in stocks) {
             double delta = (DateTime.now().millisecond % 10 - 5) / 2;
             s.price += delta;
             s.change += delta;
-            s.history.add(s.price);
-            if (s.history.length > 10) s.history.removeAt(0);
           }
         });
       }
@@ -307,7 +261,7 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
 
   @override
   void dispose() {
-    _fetchTimer?.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -322,32 +276,16 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: ListTile(
-            title: Row(
-              children: [
-                Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)),
-                  child: Text(stock.signal, style: TextStyle(fontSize: 8, color: stock.signal.contains('BUY') || stock.signal.contains('BULL') ? Colors.green : Colors.redAccent)),
-                )
-              ],
-            ),
-            subtitle: Text("${stock.segment} | RSI: ${stock.rsi.toStringAsFixed(1)}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("${stock.segment} | RSI: ${stock.rsi.toStringAsFixed(1)}"),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text("₹${stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isPositive ? Colors.green : Colors.red)),
+                Text("₹${stock.price.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, color: isPositive ? Colors.green : Colors.red)),
                 Text("${isPositive ? '+' : ''}${stock.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: isPositive ? Colors.green : Colors.red)),
               ],
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => OrderTerminalScreen(user: widget.user, stock: stock)),
-              );
-            },
           ),
         );
       },
@@ -355,117 +293,6 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 4. ORDER TERMINAL
-// -----------------------------------------------------------------------------
-class OrderTerminalScreen extends StatefulWidget {
-  final UserAccount user;
-  final StockItem stock;
-
-  const OrderTerminalScreen({super.key, required this.user, required this.stock});
-
-  @override
-  State<OrderTerminalScreen> createState() => _OrderTerminalScreenState();
-}
-
-class _OrderTerminalScreenState extends State<OrderTerminalScreen> {
-  int _lots = 1;
-  double _stopLoss = 0.0;
-  double _takeProfit = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _stopLoss = widget.stock.price * 0.98;
-    _takeProfit = widget.stock.price * 1.05;
-  }
-
-  void _executeTrade() {
-    double totalCost = _lots * widget.stock.lotSize * widget.stock.price;
-    if (totalCost > widget.user.limit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order Rejected! Required capital exceeds Admin Trading Limit.')),
-      );
-      return;
-    }
-
-    setState(() {
-      widget.user.limit -= totalCost;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Order Placed Successfully for ${widget.stock.symbol}!')),
-    );
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    double totalMargin = _lots * widget.stock.lotSize * widget.stock.price;
-
-    return Scaffold(
-      appBar: AppBar(title: Text("Trade ${widget.stock.symbol}")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(widget.stock.symbol, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                Text("₹${widget.stock.price.toStringAsFixed(2)}", style: const TextStyle(fontSize: 22, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const Divider(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Lots"),
-                Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove_circle), onPressed: () => setState(() { if (_lots > 1) _lots--; })),
-                    Text("$_lots", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    IconButton(icon: const Icon(Icons.add_circle), onPressed: () => setState(() => _lots++)),
-                  ],
-                )
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text("Stop Loss (SL): ₹${_stopLoss.toStringAsFixed(2)}", style: const TextStyle(color: Colors.redAccent)),
-            Text("Take Profit (TP): ₹${_takeProfit.toStringAsFixed(2)}", style: const TextStyle(color: Colors.greenAccent)),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Required Margin:"),
-                  Text("₹${totalMargin.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                onPressed: _executeTrade,
-                child: const Text("EXECUTE ORDER", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// 5. PORTFOLIO & POSITIONS
-// -----------------------------------------------------------------------------
 class PortfolioScreen extends StatelessWidget {
   final UserAccount user;
   const PortfolioScreen({super.key, required this.user});
@@ -485,8 +312,8 @@ class PortfolioScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Available Funds"),
-                    Text("₹${user.balance.toStringAsFixed(2)}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+                    const Text("Available Balance"),
+                    Text("₹${user.balance.toStringAsFixed(2)}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -494,7 +321,7 @@ class PortfolioScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text("Trading Limit"),
-                    Text("₹${user.limit.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    Text("₹${user.limit.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],
@@ -510,9 +337,6 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 6. ADMIN PANEL
-// -----------------------------------------------------------------------------
 class AdminPanelScreen extends StatefulWidget {
   final UserAccount adminUser;
   const AdminPanelScreen({super.key, required this.adminUser});
@@ -545,4 +369,38 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
             onPressed: () {
               setState(() {
                 customer.balance = double.tryParse(fundController.text) ?? customer.balance;
-                customer.limit = double.tryParse(limitController.text) ?
+                customer.limit = double.tryParse(limitController.text) ?? customer.limit;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text("SAVE", style: TextStyle(color: Colors.black)),
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customers = globalUsers.where((u) => !u.isAdmin).toList();
+
+    return ListView.builder(
+      itemCount: customers.length,
+      itemBuilder: (context, index) {
+        final c = customers[index];
+        return Card(
+          margin: const EdgeInsets.all(8),
+          child: ListTile(
+            title: Text(c.name),
+            subtitle: Text("Phone: ${c.phone}\nBalance: ₹${c.balance} | Limit: ₹${c.limit}"),
+            trailing: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+              onPressed: () => _manageCustomerAccount(c),
+              child: const Text("ADD FUND", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
