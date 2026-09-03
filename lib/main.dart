@@ -28,9 +28,6 @@ class LaxmiTradingApp extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// MODELS & GLOBAL DATA
-// -----------------------------------------------------------------------------
 class UserAccount {
   String name;
   String phone;
@@ -56,7 +53,7 @@ List<UserAccount> globalUsers = [
 
 class StockItem {
   final String symbol;
-  final String segment; // INDEX, F&O, STK
+  final String segment;
   double price;
   double change;
   double high;
@@ -81,7 +78,7 @@ class PositionItem {
   final int lots;
   final int lotSize;
   final double buyPrice;
-  final String type; // BUY or SELL
+  final String type;
 
   PositionItem({
     required this.symbol,
@@ -95,17 +92,12 @@ class PositionItem {
 List<PositionItem> globalPositions = [];
 
 List<StockItem> globalStocks = [
-  // INDICES
   StockItem(symbol: "NIFTY 50", segment: "NSE INDEX", price: 22504.02, change: 130.82, high: 22550.0, low: 22350.0, lotSize: 50, priceHistory: [22400, 22420, 22410, 22450, 22480, 22504]),
   StockItem(symbol: "BANKNIFTY", segment: "NSE INDEX", price: 47933.69, change: -131.61, high: 48100.0, low: 47850.0, lotSize: 15, priceHistory: [48050, 48000, 47980, 47920, 47950, 47933]),
-  
-  // OPTIONS (CALL / PUT)
   StockItem(symbol: "NIFTY 22500 CE", segment: "OPTION CALL", price: 145.50, change: 22.30, high: 160.0, low: 95.0, lotSize: 50, priceHistory: [100, 115, 110, 130, 140, 145.5]),
   StockItem(symbol: "NIFTY 22500 PE", segment: "OPTION PUT", price: 82.20, change: -18.40, high: 120.0, low: 75.0, lotSize: 50, priceHistory: [110, 105, 98, 90, 85, 82.2]),
   StockItem(symbol: "BANKNIFTY 48000 CE", segment: "OPTION CALL", price: 280.10, change: -45.00, high: 360.0, low: 250.0, lotSize: 15, priceHistory: [330, 320, 300, 290, 285, 280]),
   StockItem(symbol: "BANKNIFTY 48000 PE", segment: "OPTION PUT", price: 310.40, change: 38.60, high: 340.0, low: 260.0, lotSize: 15, priceHistory: [270, 280, 295, 305, 300, 310]),
-  
-  // EQUITIES & FUTURES
   StockItem(symbol: "RELIANCE EQ", segment: "NSE STK", price: 2999.59, change: 32.69, high: 3009.6, low: 2960.0, lotSize: 1, priceHistory: [2960, 2975, 2970, 2985, 2990, 2999]),
   StockItem(symbol: "TATA MOTORS", segment: "NSE STK", price: 985.40, change: 14.20, high: 992.0, low: 970.0, lotSize: 1, priceHistory: [972, 975, 978, 982, 980, 985]),
   StockItem(symbol: "HDFC BANK", segment: "NSE STK", price: 1442.10, change: -8.50, high: 1460.0, low: 1438.0, lotSize: 1, priceHistory: [1452, 1450, 1448, 1440, 1445, 1442]),
@@ -114,9 +106,6 @@ List<StockItem> globalStocks = [
   StockItem(symbol: "GOLD FUT", segment: "MCX FUT", price: 72363.16, change: -196.84, high: 72600.0, low: 72200.0, lotSize: 1, priceHistory: [72550, 72500, 72450, 72400, 72380, 72363]),
 ];
 
-// -----------------------------------------------------------------------------
-// AUTHENTICATION
-// -----------------------------------------------------------------------------
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -170,9 +159,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// MAIN DASHBOARD
-// -----------------------------------------------------------------------------
 class MainDashboard extends StatefulWidget {
   final UserAccount user;
   const MainDashboard({super.key, required this.user});
@@ -185,14 +171,31 @@ class _MainDashboardState extends State<MainDashboard> {
   int _selectedIndex = 0;
   Timer? _marketTimer;
   final Random _rnd = Random();
+  bool _isMarketOpen = false;
 
   @override
   void initState() {
     super.initState();
-    // Simulation of live price ticking
-    _marketTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
-      if (mounted) {
-        setState(() {
+    _checkMarketTimeAndTick();
+    _marketTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _checkMarketTimeAndTick();
+    });
+  }
+
+  void _checkMarketTimeAndTick() {
+    DateTime now = DateTime.now();
+    // Monday = 1, Sunday = 7
+    bool isWeekday = now.weekday >= 1 && now.weekday <= 5;
+    int currentMinutes = now.hour * 60 + now.minute;
+    int openMinutes = 9 * 60 + 15;  // 09:15 AM
+    int closeMinutes = 15 * 60 + 30; // 03:30 PM
+
+    bool marketOpenNow = isWeekday && (currentMinutes >= openMinutes && currentMinutes <= closeMinutes);
+
+    if (mounted) {
+      setState(() {
+        _isMarketOpen = marketOpenNow;
+        if (_isMarketOpen) {
           for (var s in globalStocks) {
             double tick = (_rnd.nextDouble() * 3 - 1.4);
             s.price += tick;
@@ -205,9 +208,9 @@ class _MainDashboardState extends State<MainDashboard> {
               s.priceHistory.removeAt(0);
             }
           }
-        });
-      }
-    });
+        }
+      });
+    }
   }
 
   @override
@@ -219,7 +222,7 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   Widget build(BuildContext context) {
     List<Widget> pages = [
-      MarketWatchScreen(user: widget.user),
+      MarketWatchScreen(user: widget.user, isMarketOpen: _isMarketOpen),
       PortfolioScreen(user: widget.user),
       WalletScreen(user: widget.user),
     ];
@@ -233,7 +236,27 @@ class _MainDashboardState extends State<MainDashboard> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.user.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Text(widget.user.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _isMarketOpen ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _isMarketOpen ? Colors.green : Colors.red),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.circle, size: 8, color: _isMarketOpen ? Colors.green : Colors.red),
+                      const SizedBox(width: 4),
+                      Text(_isMarketOpen ? "LIVE" : "CLOSED", style: TextStyle(fontSize: 10, color: _isMarketOpen ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                )
+              ],
+            ),
             Text('Balance: ₹${widget.user.balance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.greenAccent)),
           ],
         ),
@@ -260,12 +283,10 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// WATCHLIST WITH SEARCH & CATEGORIES
-// -----------------------------------------------------------------------------
 class MarketWatchScreen extends StatefulWidget {
   final UserAccount user;
-  const MarketWatchScreen({super.key, required this.user});
+  final bool isMarketOpen;
+  const MarketWatchScreen({super.key, required this.user, required this.isMarketOpen});
 
   @override
   State<MarketWatchScreen> createState() => _MarketWatchScreenState();
@@ -291,7 +312,17 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
 
     return Column(
       children: [
-        // Search Box
+        if (!widget.isMarketOpen)
+          Container(
+            width: double.infinity,
+            color: Colors.redAccent.withOpacity(0.15),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: const Text(
+              "MARKET IS CLOSED (Hours: Mon-Fri, 9:15 AM - 3:30 PM IST)",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: TextField(
@@ -306,7 +337,6 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
             ),
           ),
         ),
-        // Filter Chips
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -349,7 +379,7 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
                   ],
                 ),
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => DetailedStockScreen(user: widget.user, stock: stock)));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => DetailedStockScreen(user: widget.user, stock: stock, isMarketOpen: widget.isMarketOpen)));
                 },
               );
             },
@@ -360,14 +390,12 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// DETAILED STOCK SCREEN WITH CANDLESTICK CHART
-// -----------------------------------------------------------------------------
 class DetailedStockScreen extends StatefulWidget {
   final UserAccount user;
   final StockItem stock;
+  final bool isMarketOpen;
 
-  const DetailedStockScreen({super.key, required this.user, required this.stock});
+  const DetailedStockScreen({super.key, required this.user, required this.stock, required this.isMarketOpen});
 
   @override
   State<DetailedStockScreen> createState() => _DetailedStockScreenState();
@@ -377,6 +405,11 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
   int _lots = 1;
 
   void _placeTrade(String type) {
+    if (!widget.isMarketOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market is closed! Cannot place order outside market hours.')));
+      return;
+    }
+
     double totalMargin = _lots * widget.stock.lotSize * widget.stock.price * 0.1;
     if (totalMargin > widget.user.balance) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order Rejected! Insufficient Wallet Balance.')));
@@ -424,8 +457,6 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            
-            // CANDLESTICK / LINE CHART
             const Text("LIVE MARKET CHART", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
@@ -437,7 +468,6 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
                 painter: CandlestickPainter(priceHistory: widget.stock.priceHistory),
               ),
             ),
-            
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -456,9 +486,12 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
             const Spacer(),
             Row(
               children: [
-                Expanded(
+               Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.isMarketOpen ? const Color(0xFF00C853) : Colors.grey,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                     onPressed: () => _placeTrade('BUY'),
                     child: const Text('BUY', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
@@ -466,7 +499,10 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.isMarketOpen ? Colors.redAccent : Colors.grey,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                     onPressed: () => _placeTrade('SELL'),
                     child: const Text('SELL', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
@@ -480,9 +516,6 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// CANDLESTICK PAINTER (CHART DRAWING)
-// -----------------------------------------------------------------------------
 class CandlestickPainter extends CustomPainter {
   final List<double> priceHistory;
   CandlestickPainter({required this.priceHistory});
@@ -511,13 +544,11 @@ class CandlestickPainter extends CustomPainter {
       double highY = size.height - ((current - minP) / (maxP - minP) * size.height * 0.8) - 10;
       double lowY = size.height - ((previous - minP) / (maxP - minP) * size.height * 0.8) - 10;
 
-      // Draw Candlestick Body
       canvas.drawRect(
         Rect.fromLTRB(x - (candleWidth * 0.3), highY, x + (candleWidth * 0.3), lowY),
         paint,
       );
 
-      // Draw Wick Line
       canvas.drawLine(Offset(x, highY - 5), Offset(x, lowY + 5), paint);
     }
   }
@@ -526,9 +557,6 @@ class CandlestickPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// -----------------------------------------------------------------------------
-// POSITIONS & PNL
-// -----------------------------------------------------------------------------
 class PortfolioScreen extends StatelessWidget {
   final UserAccount user;
   const PortfolioScreen({super.key, required this.user});
@@ -599,9 +627,6 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// WALLET SCREEN
-// -----------------------------------------------------------------------------
 class WalletScreen extends StatefulWidget {
   final UserAccount user;
   const WalletScreen({super.key, required this.user});
@@ -690,9 +715,6 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// ADMIN PANEL
-// -----------------------------------------------------------------------------
 class AdminPanelScreen extends StatefulWidget {
   final UserAccount adminUser;
   const AdminPanelScreen({super.key, required this.adminUser});
