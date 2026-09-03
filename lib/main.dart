@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const LaxmiTradingApp());
@@ -49,7 +47,7 @@ class UserAccount {
   });
 }
 
-// Global User Database (Admin Credentials Set)
+// Global User Database
 List<UserAccount> globalUsers = [
   UserAccount(
     name: 'Ajay (Admin)',
@@ -70,7 +68,7 @@ List<UserAccount> globalUsers = [
 ];
 
 // -----------------------------------------------------------------------------
-// ADVANCED STOCK MODEL (WITH TECHNICAL INDICATORS & MARKET DEPTH)
+// STOCK MODEL
 // -----------------------------------------------------------------------------
 class StockItem {
   final String symbol;
@@ -95,7 +93,7 @@ class StockItem {
 }
 
 // -----------------------------------------------------------------------------
-// 1. AUTHENTICATION SCREEN (MOBILE + PASSWORD LOGIN)
+// 1. AUTHENTICATION SCREEN
 // -----------------------------------------------------------------------------
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -268,7 +266,7 @@ class _MainDashboardState extends State<MainDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// 3. REAL MARKET WATCH & AI ANALYTICS
+// 3. MARKET WATCH
 // -----------------------------------------------------------------------------
 class MarketWatchScreen extends StatefulWidget {
   final UserAccount user;
@@ -322,7 +320,7 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
         final isPositive = stock.change >= 0;
 
         return Card(
-          margin: const EdgeInsets.horizontal(12, vertical: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: ListTile(
             title: Row(
               children: [
@@ -358,7 +356,7 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
 }
 
 // -----------------------------------------------------------------------------
-// 4. ORDER TERMINAL WITH STOP-LOSS & TAKE-PROFIT
+// 4. ORDER TERMINAL
 // -----------------------------------------------------------------------------
 class OrderTerminalScreen extends StatefulWidget {
   final UserAccount user;
@@ -513,7 +511,7 @@ class PortfolioScreen extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// 6. ADMIN PANEL (EXCLUSIVE FOR AJAY)
+// 6. ADMIN PANEL
 // -----------------------------------------------------------------------------
 class AdminPanelScreen extends StatefulWidget {
   final UserAccount adminUser;
@@ -543,4 +541,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.gree
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () {
+              setState(() {
+                customer.balance = double.tryParse(fundController.text) ?? customer.balance;
+                customer.limit = double.tryParse(limitController.text) ?
