@@ -28,6 +28,9 @@ class LaxmiTradingApp extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// MODELS & GLOBAL DATA
+// -----------------------------------------------------------------------------
 class UserAccount {
   String name;
   String phone;
@@ -47,29 +50,29 @@ class UserAccount {
 }
 
 List<UserAccount> globalUsers = [
-  UserAccount(name: 'Ajay (Admin)', phone: '9999999999', password: 'Ajay999', balance: 10000000.0, limit: 10000000.0, isAdmin: true),
+  UserAccount(name: 'Ajay (Admin)', phone: '9999999999', password: 'Ajay999', balance: 10024000.0, limit: 50000000.0, isAdmin: true),
   UserAccount(name: 'Rahul Sharma', phone: '9876543210', password: 'user123', balance: 50000.0, limit: 200000.0, isAdmin: false),
 ];
 
 class StockItem {
   final String symbol;
-  final String segment;
+  final String segment; // INDEX, F&O, STK
   double price;
   double change;
-  double percentChange;
   double high;
   double low;
   final int lotSize;
+  List<double> priceHistory;
 
   StockItem({
     required this.symbol,
     required this.segment,
     required this.price,
     required this.change,
-    required this.percentChange,
     required this.high,
     required this.low,
     required this.lotSize,
+    required this.priceHistory,
   });
 }
 
@@ -78,7 +81,7 @@ class PositionItem {
   final int lots;
   final int lotSize;
   final double buyPrice;
-  final String type;
+  final String type; // BUY or SELL
 
   PositionItem({
     required this.symbol,
@@ -90,14 +93,30 @@ class PositionItem {
 }
 
 List<PositionItem> globalPositions = [];
+
 List<StockItem> globalStocks = [
-  StockItem(symbol: "NIFTY 50", segment: "NSE INDEX", price: 22485.50, change: 112.30, percentChange: 0.50, high: 22510.0, low: 22350.0, lotSize: 50),
-  StockItem(symbol: "BANKNIFTY", segment: "NSE INDEX", price: 47920.10, change: -145.20, percentChange: -0.30, high: 48100.0, low: 47850.0, lotSize: 15),
-  StockItem(symbol: "CRUDEOIL FUT", segment: "MCX FUT", price: 6520.00, change: 84.00, percentChange: 1.30, high: 6540.0, low: 6410.0, lotSize: 100),
-  StockItem(symbol: "GOLD FUT", segment: "MCX FUT", price: 72350.00, change: -210.00, percentChange: -0.29, high: 72600.0, low: 72200.0, lotSize: 1),
-  StockItem(symbol: "RELIANCE EQ", segment: "NSE STK", price: 2985.40, change: 18.50, percentChange: 0.62, high: 2995.0, low: 2960.0, lotSize: 1),
+  // INDICES
+  StockItem(symbol: "NIFTY 50", segment: "NSE INDEX", price: 22504.02, change: 130.82, high: 22550.0, low: 22350.0, lotSize: 50, priceHistory: [22400, 22420, 22410, 22450, 22480, 22504]),
+  StockItem(symbol: "BANKNIFTY", segment: "NSE INDEX", price: 47933.69, change: -131.61, high: 48100.0, low: 47850.0, lotSize: 15, priceHistory: [48050, 48000, 47980, 47920, 47950, 47933]),
+  
+  // OPTIONS (CALL / PUT)
+  StockItem(symbol: "NIFTY 22500 CE", segment: "OPTION CALL", price: 145.50, change: 22.30, high: 160.0, low: 95.0, lotSize: 50, priceHistory: [100, 115, 110, 130, 140, 145.5]),
+  StockItem(symbol: "NIFTY 22500 PE", segment: "OPTION PUT", price: 82.20, change: -18.40, high: 120.0, low: 75.0, lotSize: 50, priceHistory: [110, 105, 98, 90, 85, 82.2]),
+  StockItem(symbol: "BANKNIFTY 48000 CE", segment: "OPTION CALL", price: 280.10, change: -45.00, high: 360.0, low: 250.0, lotSize: 15, priceHistory: [330, 320, 300, 290, 285, 280]),
+  StockItem(symbol: "BANKNIFTY 48000 PE", segment: "OPTION PUT", price: 310.40, change: 38.60, high: 340.0, low: 260.0, lotSize: 15, priceHistory: [270, 280, 295, 305, 300, 310]),
+  
+  // EQUITIES & FUTURES
+  StockItem(symbol: "RELIANCE EQ", segment: "NSE STK", price: 2999.59, change: 32.69, high: 3009.6, low: 2960.0, lotSize: 1, priceHistory: [2960, 2975, 2970, 2985, 2990, 2999]),
+  StockItem(symbol: "TATA MOTORS", segment: "NSE STK", price: 985.40, change: 14.20, high: 992.0, low: 970.0, lotSize: 1, priceHistory: [972, 975, 978, 982, 980, 985]),
+  StockItem(symbol: "HDFC BANK", segment: "NSE STK", price: 1442.10, change: -8.50, high: 1460.0, low: 1438.0, lotSize: 1, priceHistory: [1452, 1450, 1448, 1440, 1445, 1442]),
+  StockItem(symbol: "INFOSYS EQ", segment: "NSE STK", price: 1520.00, change: 5.80, high: 1532.0, low: 1510.0, lotSize: 1, priceHistory: [1512, 1515, 1518, 1522, 1519, 1520]),
+  StockItem(symbol: "CRUDEOIL FUT", segment: "MCX FUT", price: 6519.72, change: 83.72, high: 6540.0, low: 6410.0, lotSize: 100, priceHistory: [6430, 6450, 6480, 6500, 6510, 6519]),
+  StockItem(symbol: "GOLD FUT", segment: "MCX FUT", price: 72363.16, change: -196.84, high: 72600.0, low: 72200.0, lotSize: 1, priceHistory: [72550, 72500, 72450, 72400, 72380, 72363]),
 ];
 
+// -----------------------------------------------------------------------------
+// AUTHENTICATION
+// -----------------------------------------------------------------------------
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -106,8 +125,8 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController(text: "9999999999");
+  final _passwordController = TextEditingController(text: "Ajay999");
 
   void _handleLogin() {
     String phone = _phoneController.text.trim();
@@ -130,11 +149,11 @@ class _AuthScreenState extends State<AuthScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.show_chart_rounded, size: 72, color: Color(0xFF00C853)),
+            const Icon(Icons.show_chart_rounded, size: 80, color: Color(0xFF00C853)),
             const SizedBox(height: 10),
-            const Text('LAXMI TRADING', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-            const Text('Real-Time Market Terminal', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
-            const SizedBox(height: 30),
+            const Text('LAXMI TERMINAL', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('Pro Options & Equity Trader', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 40),
             TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
             const SizedBox(height: 16),
             TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
@@ -142,7 +161,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), padding: const EdgeInsets.symmetric(vertical: 16)),
               onPressed: _handleLogin,
-              child: const Text('LOGIN TO APP', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text('LOGIN TO TERMINAL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ],
         ),
@@ -151,6 +170,9 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
+// -----------------------------------------------------------------------------
+// MAIN DASHBOARD
+// -----------------------------------------------------------------------------
 class MainDashboard extends StatefulWidget {
   final UserAccount user;
   const MainDashboard({super.key, required this.user});
@@ -167,15 +189,21 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void initState() {
     super.initState();
+    // Simulation of live price ticking
     _marketTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
       if (mounted) {
         setState(() {
           for (var s in globalStocks) {
-            double tick = (_rnd.nextDouble() * 4 - 2);
+            double tick = (_rnd.nextDouble() * 3 - 1.4);
             s.price += tick;
             s.change += tick;
             if (s.price > s.high) s.high = s.price;
             if (s.price < s.low) s.low = s.price;
+
+            s.priceHistory.add(s.price);
+            if (s.priceHistory.length > 20) {
+              s.priceHistory.removeAt(0);
+            }
           }
         });
       }
@@ -205,8 +233,8 @@ class _MainDashboardState extends State<MainDashboard> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.user.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            Text('Balance: ₹${widget.user.balance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, color: Colors.greenAccent)),
+            Text(widget.user.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Balance: ₹${widget.user.balance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.greenAccent)),
           ],
         ),
         actions: [
@@ -232,40 +260,109 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-class MarketWatchScreen extends StatelessWidget {
+// -----------------------------------------------------------------------------
+// WATCHLIST WITH SEARCH & CATEGORIES
+// -----------------------------------------------------------------------------
+class MarketWatchScreen extends StatefulWidget {
   final UserAccount user;
   const MarketWatchScreen({super.key, required this.user});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      itemCount: globalStocks.length,
-      separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
-      itemBuilder: (context, index) {
-        final stock = globalStocks[index];
-        final isPos = stock.change >= 0;
+  State<MarketWatchScreen> createState() => _MarketWatchScreenState();
+}
 
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          subtitle: Text("${stock.segment} | H: ${stock.high.toStringAsFixed(1)} L: ${stock.low.toStringAsFixed(1)}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text("₹${stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-              Text("${isPos ? '+' : ''}${stock.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-            ],
+class _MarketWatchScreenState extends State<MarketWatchScreen> {
+  String _searchQuery = "";
+  String _selectedCategory = "ALL";
+
+  @override
+  Widget build(BuildContext context) {
+    List<StockItem> filteredStocks = globalStocks.where((s) {
+      bool matchesSearch = s.symbol.toLowerCase().contains(_searchQuery.toLowerCase());
+      if (_selectedCategory == "OPTIONS") {
+        return matchesSearch && s.segment.contains("OPTION");
+      } else if (_selectedCategory == "STOCKS") {
+        return matchesSearch && s.segment.contains("STK");
+      } else if (_selectedCategory == "INDICES") {
+        return matchesSearch && s.segment.contains("INDEX");
+      }
+      return matchesSearch;
+    }).toList();
+
+    return Column(
+      children: [
+        // Search Box
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: TextField(
+            onChanged: (val) => setState(() => _searchQuery = val),
+            decoration: InputDecoration(
+              hintText: "Search Stock, Call / Put (e.g. NIFTY CE)...",
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              filled: true,
+              fillColor: const Color(0xFF151D2A),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            ),
           ),
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => DetailedStockScreen(user: user, stock: stock)));
-          },
-        );
-      },
+        ),
+        // Filter Chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: ["ALL", "INDICES", "OPTIONS", "STOCKS"].map((cat) {
+              bool isSelected = _selectedCategory == cat;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: FilterChip(
+                  label: Text(cat),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFF00C853),
+                  onSelected: (bool selected) {
+                    setState(() => _selectedCategory = cat);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.separated(
+            itemCount: filteredStocks.length,
+            separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
+            itemBuilder: (context, index) {
+              final stock = filteredStocks[index];
+              final isPos = stock.change >= 0;
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                subtitle: Text("${stock.segment} | H: ${stock.high.toStringAsFixed(1)} L: ${stock.low.toStringAsFixed(1)}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text("₹${stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
+                    Text("${isPos ? '+' : ''}${stock.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => DetailedStockScreen(user: widget.user, stock: stock)));
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
+// -----------------------------------------------------------------------------
+// DETAILED STOCK SCREEN WITH CANDLESTICK CHART
+// -----------------------------------------------------------------------------
 class DetailedStockScreen extends StatefulWidget {
   final UserAccount user;
   final StockItem stock;
@@ -282,7 +379,7 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
   void _placeTrade(String type) {
     double totalMargin = _lots * widget.stock.lotSize * widget.stock.price * 0.1;
     if (totalMargin > widget.user.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order Rejected! Insufficient Balance.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order Rejected! Insufficient Wallet Balance.')));
       return;
     }
 
@@ -294,7 +391,7 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
       type: type,
     ));
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: type == 'BUY' ? Colors.green : Colors.red, content: Text('$type Order Executed!')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: type == 'BUY' ? Colors.green : Colors.red, content: Text('$type Order Executed for ${widget.stock.symbol}!')));
     Navigator.pop(context);
   }
 
@@ -315,18 +412,33 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("₹${widget.stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-                    Text("${isPos ? '+' : ''}${widget.stock.change.toStringAsFixed(2)}", style: TextStyle(color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
+                    Text("₹${widget.stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
+                    Text("${isPos ? '+' : ''}${widget.stock.change.toStringAsFixed(2)}", style: TextStyle(color: isPos ? const Color(0xFF00C853) : Colors.redAccent, fontSize: 14)),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
                   child: Text("Lot Size: ${widget.stock.lotSize}", style: const TextStyle(fontWeight: FontWeight.bold)),
                 )
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 20),
+            
+            // CANDLESTICK / LINE CHART
+            const Text("LIVE MARKET CHART", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Container(
+              height: 180,
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: const Color(0xFF151D2A), borderRadius: BorderRadius.circular(8)),
+              child: CustomPaint(
+                painter: CandlestickPainter(priceHistory: widget.stock.priceHistory),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -340,7 +452,8 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
                 )
               ],
             ),
-            const SizedBox(height: 20),
+            Text("Required Margin: ₹${(_lots * widget.stock.lotSize * widget.stock.price * 0.1).toStringAsFixed(2)}", style: const TextStyle(color: Colors.amber, fontSize: 13)),
+            const Spacer(),
             Row(
               children: [
                 Expanded(
@@ -367,6 +480,55 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
   }
 }
 
+// -----------------------------------------------------------------------------
+// CANDLESTICK PAINTER (CHART DRAWING)
+// -----------------------------------------------------------------------------
+class CandlestickPainter extends CustomPainter {
+  final List<double> priceHistory;
+  CandlestickPainter({required this.priceHistory});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (priceHistory.length < 2) return;
+
+    double maxP = priceHistory.reduce(max);
+    double minP = priceHistory.reduce(min);
+    if (maxP == minP) maxP += 1.0;
+
+    double candleWidth = size.width / priceHistory.length;
+
+    for (int i = 0; i < priceHistory.length; i++) {
+      double current = priceHistory[i];
+      double previous = i > 0 ? priceHistory[i - 1] : current;
+      bool isGreen = current >= previous;
+
+      Paint paint = Paint()
+        ..color = isGreen ? const Color(0xFF00C853) : Colors.redAccent
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.fill;
+
+      double x = i * candleWidth + (candleWidth / 2);
+      double highY = size.height - ((current - minP) / (maxP - minP) * size.height * 0.8) - 10;
+      double lowY = size.height - ((previous - minP) / (maxP - minP) * size.height * 0.8) - 10;
+
+      // Draw Candlestick Body
+      canvas.drawRect(
+        Rect.fromLTRB(x - (candleWidth * 0.3), highY, x + (candleWidth * 0.3), lowY),
+        paint,
+      );
+
+      // Draw Wick Line
+      canvas.drawLine(Offset(x, highY - 5), Offset(x, lowY + 5), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// -----------------------------------------------------------------------------
+// POSITIONS & PNL
+// -----------------------------------------------------------------------------
 class PortfolioScreen extends StatelessWidget {
   final UserAccount user;
   const PortfolioScreen({super.key, required this.user});
@@ -400,12 +562,14 @@ class PortfolioScreen extends StatelessWidget {
                 const Text('Total Realtime P&L', style: TextStyle(color: Colors.grey, fontSize: 14)),
                 Text(
                   '₹${totalPnL.toStringAsFixed(2)}',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
+          const Text("OPEN POSITIONS", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 10),
           Expanded(
             child: globalPositions.isEmpty
                 ? const Center(child: Text("No Open Positions", style: TextStyle(color: Colors.grey)))
@@ -416,10 +580,14 @@ class PortfolioScreen extends StatelessWidget {
                       double pnl = _calculatePnL(pos);
 
                       return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
                           title: Text("${pos.symbol} [${pos.type}]", style: TextStyle(fontWeight: FontWeight.bold, color: pos.type == 'BUY' ? Colors.green : Colors.redAccent)),
-                          subtitle: Text("Qty: ${pos.lots * pos.lotSize}"),
-                          trailing: Text("₹${pnl.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, color: pnl >= 0 ? Colors.greenAccent : Colors.redAccent)),
+                          subtitle: Text("Qty: ${pos.lots * pos.lotSize} | Buy Avg: ₹${pos.buyPrice.toStringAsFixed(2)}"),
+                          trailing: Text(
+                            "₹${pnl.toStringAsFixed(2)}",
+                            style: TextStyle(fontWeight: FontWeight.bold, color: pnl >= 0 ? Colors.greenAccent : Colors.redAccent),
+                          ),
                         ),
                       );
                     },
@@ -431,6 +599,9 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// WALLET SCREEN
+// -----------------------------------------------------------------------------
 class WalletScreen extends StatefulWidget {
   final UserAccount user;
   const WalletScreen({super.key, required this.user});
@@ -498,17 +669,17 @@ class _WalletScreenState extends State<WalletScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), padding: const EdgeInsets.symmetric(vertical: 16)),
                   onPressed: () => _showTransactionDialog("DEPOSIT"),
-                  child: const Text("ADD DEPOSIT", style: TextStyle(color: Colors.black)),
+                  child: const Text("ADD DEPOSIT", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, padding: const EdgeInsets.symmetric(vertical: 16)),
                   onPressed: () => _showTransactionDialog("WITHDRAW"),
-                  child: const Text("WITHDRAW", style: TextStyle(color: Colors.black)),
+                  child: const Text("WITHDRAW", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -519,6 +690,9 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ADMIN PANEL
+// -----------------------------------------------------------------------------
 class AdminPanelScreen extends StatefulWidget {
   final UserAccount adminUser;
   const AdminPanelScreen({super.key, required this.adminUser});
