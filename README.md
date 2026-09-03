@@ -1,21 +1,14 @@
-# Laxmi Trading — Paper Trading MVP
+# Laxmi Trading — Live Share Market & Admin App
 
-## Current step
-- Mobile number + demo OTP login
-- ₹5,00,000 virtual starting balance
-- Indian index list: NIFTY 50, BANK NIFTY, FINNIFTY, SENSEX
-- Virtual buy/sell and basic portfolio tracking
+A Flutter application for real-time stock market tracking, admin-based fund approvals, and live trading operations.
 
-## Demo OTP
-123456
+## Features
+- **Real-time Live Market Data**: Live APIs for NSE, BSE, and Commodity tickers.
+- **Admin Control System**: Only Admin ("Ajay") can deposit funds and set customer limits.
+- **Live Trading Validation**: Market timings enforcement (09:15 AM - 03:30 PM).
+- **Automated Builds**: Continuous Integration configured via Codemagic.
 
-## Important
-This is a prototype/paper-trading app. Prices are sample values and trades are virtual. Do not use it for real-money trading without proper broker/exchange integrations, licensed market data, security controls, KYC, and applicable Indian regulatory compliance.
-
-## Run
-Install Flutter, then:
-
-```bash
-flutter pub get
-flutter run
-```
+## Admin Access
+- **Admin Mobile**: 9004853542 (Ajay)
+- **OTP**: 900485
+- 
