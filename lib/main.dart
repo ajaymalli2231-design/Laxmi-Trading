@@ -51,27 +51,33 @@ List<UserAccount> globalUsers = [
   UserAccount(name: 'Rahul Sharma', phone: '9876543210', password: 'user123', balance: 50000.0, limit: 200000.0, isAdmin: false),
 ];
 
-class StockItem {
+class IndexData {
   final String symbol;
-  final String segment;
-  double price;
+  double spotPrice;
   double change;
-  double high;
-  double low;
+  final int minStrike;
+  final int maxStrike;
+  final int step;
   final int lotSize;
-  List<double> priceHistory;
 
-  StockItem({
+  IndexData({
     required this.symbol,
-    required this.segment,
-    required this.price,
+    required this.spotPrice,
     required this.change,
-    required this.high,
-    required this.low,
+    required this.minStrike,
+    required this.maxStrike,
+    required this.step,
     required this.lotSize,
-    required this.priceHistory,
   });
 }
+
+Map<String, IndexData> globalIndices = {
+  "NIFTY 50": IndexData(symbol: "NIFTY 50", spotPrice: 23873.45, change: -41.00, minStrike: 22100, maxStrike: 26400, step: 50, lotSize: 50),
+  "BANKNIFTY": IndexData(symbol: "BANKNIFTY", spotPrice: 48933.69, change: -131.61, minStrike: 43500, maxStrike: 69000, step: 100, lotSize: 15),
+  "SENSEX": IndexData(symbol: "SENSEX", spotPrice: 78500.20, change: 120.50, minStrike: 69100, maxStrike: 86000, step: 100, lotSize: 10),
+  "FINNIFTY": IndexData(symbol: "FINNIFTY", spotPrice: 21450.10, change: 15.30, minStrike: 20000, maxStrike: 23500, step: 50, lotSize: 40),
+  "MIDCPNIFTY": IndexData(symbol: "MIDCPNIFTY", spotPrice: 12300.80, change: -22.10, minStrike: 11000, maxStrike: 13500, step: 25, lotSize: 75),
+};
 
 class PositionItem {
   final String symbol;
@@ -90,21 +96,6 @@ class PositionItem {
 }
 
 List<PositionItem> globalPositions = [];
-
-List<StockItem> globalStocks = [
-  StockItem(symbol: "NIFTY 50", segment: "NSE INDEX", price: 22504.02, change: 130.82, high: 22550.0, low: 22350.0, lotSize: 50, priceHistory: [22400, 22420, 22410, 22450, 22480, 22504]),
-  StockItem(symbol: "BANKNIFTY", segment: "NSE INDEX", price: 47933.69, change: -131.61, high: 48100.0, low: 47850.0, lotSize: 15, priceHistory: [48050, 48000, 47980, 47920, 47950, 47933]),
-  StockItem(symbol: "NIFTY 22500 CE", segment: "OPTION CALL", price: 145.50, change: 22.30, high: 160.0, low: 95.0, lotSize: 50, priceHistory: [100, 115, 110, 130, 140, 145.5]),
-  StockItem(symbol: "NIFTY 22500 PE", segment: "OPTION PUT", price: 82.20, change: -18.40, high: 120.0, low: 75.0, lotSize: 50, priceHistory: [110, 105, 98, 90, 85, 82.2]),
-  StockItem(symbol: "BANKNIFTY 48000 CE", segment: "OPTION CALL", price: 280.10, change: -45.00, high: 360.0, low: 250.0, lotSize: 15, priceHistory: [330, 320, 300, 290, 285, 280]),
-  StockItem(symbol: "BANKNIFTY 48000 PE", segment: "OPTION PUT", price: 310.40, change: 38.60, high: 340.0, low: 260.0, lotSize: 15, priceHistory: [270, 280, 295, 305, 300, 310]),
-  StockItem(symbol: "RELIANCE EQ", segment: "NSE STK", price: 2999.59, change: 32.69, high: 3009.6, low: 2960.0, lotSize: 1, priceHistory: [2960, 2975, 2970, 2985, 2990, 2999]),
-  StockItem(symbol: "TATA MOTORS", segment: "NSE STK", price: 985.40, change: 14.20, high: 992.0, low: 970.0, lotSize: 1, priceHistory: [972, 975, 978, 982, 980, 985]),
-  StockItem(symbol: "HDFC BANK", segment: "NSE STK", price: 1442.10, change: -8.50, high: 1460.0, low: 1438.0, lotSize: 1, priceHistory: [1452, 1450, 1448, 1440, 1445, 1442]),
-  StockItem(symbol: "INFOSYS EQ", segment: "NSE STK", price: 1520.00, change: 5.80, high: 1532.0, low: 1510.0, lotSize: 1, priceHistory: [1512, 1515, 1518, 1522, 1519, 1520]),
-  StockItem(symbol: "CRUDEOIL FUT", segment: "MCX FUT", price: 6519.72, change: 83.72, high: 6540.0, low: 6410.0, lotSize: 100, priceHistory: [6430, 6450, 6480, 6500, 6510, 6519]),
-  StockItem(symbol: "GOLD FUT", segment: "MCX FUT", price: 72363.16, change: -196.84, high: 72600.0, low: 72200.0, lotSize: 1, priceHistory: [72550, 72500, 72450, 72400, 72380, 72363]),
-];
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -184,11 +175,10 @@ class _MainDashboardState extends State<MainDashboard> {
 
   void _checkMarketTimeAndTick() {
     DateTime now = DateTime.now();
-    // Monday = 1, Sunday = 7
     bool isWeekday = now.weekday >= 1 && now.weekday <= 5;
     int currentMinutes = now.hour * 60 + now.minute;
-    int openMinutes = 9 * 60 + 15;  // 09:15 AM
-    int closeMinutes = 15 * 60 + 30; // 03:30 PM
+    int openMinutes = 9 * 60 + 15;
+    int closeMinutes = 15 * 60 + 30;
 
     bool marketOpenNow = isWeekday && (currentMinutes >= openMinutes && currentMinutes <= closeMinutes);
 
@@ -196,18 +186,11 @@ class _MainDashboardState extends State<MainDashboard> {
       setState(() {
         _isMarketOpen = marketOpenNow;
         if (_isMarketOpen) {
-          for (var s in globalStocks) {
-            double tick = (_rnd.nextDouble() * 3 - 1.4);
-            s.price += tick;
-            s.change += tick;
-            if (s.price > s.high) s.high = s.price;
-            if (s.price < s.low) s.low = s.price;
-
-            s.priceHistory.add(s.price);
-            if (s.priceHistory.length > 20) {
-              s.priceHistory.removeAt(0);
-            }
-          }
+          globalIndices.forEach((key, indexData) {
+            double tick = (_rnd.nextDouble() * 4 - 2.0);
+            indexData.spotPrice += tick;
+            indexData.change += tick;
+          });
         }
       });
     }
@@ -223,6 +206,7 @@ class _MainDashboardState extends State<MainDashboard> {
   Widget build(BuildContext context) {
     List<Widget> pages = [
       MarketWatchScreen(user: widget.user, isMarketOpen: _isMarketOpen),
+      OptionChainScreen(user: widget.user, isMarketOpen: _isMarketOpen),
       PortfolioScreen(user: widget.user),
       WalletScreen(user: widget.user),
     ];
@@ -274,11 +258,230 @@ class _MainDashboardState extends State<MainDashboard> {
         type: BottomNavigationBarType.fixed,
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.candlestick_chart), label: 'Watchlist'),
+          const BottomNavigationBarItem(icon: Icon(Icons.table_chart_rounded), label: 'Option Chain'),
           const BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Positions'),
           const BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Wallet'),
           if (widget.user.isAdmin) const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
         ],
       ),
+    );
+  }
+}
+
+// OPTION CHAIN SCREEN
+class OptionChainScreen extends StatefulWidget {
+  final UserAccount user;
+  final bool isMarketOpen;
+
+  const OptionChainScreen({super.key, required this.user, required this.isMarketOpen});
+
+  @override
+  State<OptionChainScreen> createState() => _OptionChainScreenState();
+}
+
+class _OptionChainScreenState extends State<OptionChainScreen> {
+  String selectedSymbol = "NIFTY 50";
+
+  void _buyOption(String optionSymbol, double price, int lotSize) {
+    if (!widget.isMarketOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market is closed! Cannot place order outside market hours.')));
+      return;
+    }
+
+    double margin = lotSize * price;
+
+    if (margin > widget.user.balance) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Wallet Balance!')));
+      return;
+    }
+
+    globalPositions.add(PositionItem(
+      symbol: optionSymbol,
+      lots: 1,
+      lotSize: lotSize,
+      buyPrice: price,
+      type: 'BUY',
+    ));
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('BUY Order Executed for $optionSymbol @ ₹${price.toStringAsFixed(2)}!')));
+  }
+
+  // Realistic Options Price Modeling (Black-Scholes Approximation)
+  double _calculateCallPrice(double spot, int strike) {
+    double diff = spot - strike;
+    if (diff > 0) {
+      return diff + (spot * 0.005);
+    } else {
+      return max(2.50, (spot * 0.005) * exp(diff / (spot * 0.02)));
+    }
+  }
+
+  double _calculatePutPrice(double spot, int strike) {
+    double diff = strike - spot;
+    if (diff > 0) {
+      return diff + (spot * 0.005);
+    } else {
+      return max(2.50, (spot * 0.005) * exp(-diff / (spot * 0.02)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    IndexData indexData = globalIndices[selectedSymbol]!;
+    List<int> strikes = [];
+    for (int s = indexData.minStrike; s <= indexData.maxStrike; s += indexData.step) {
+      strikes.add(s);
+    }
+
+    return Column(
+      children: [
+        if (!widget.isMarketOpen)
+          Container(
+            width: double.infinity,
+            color: Colors.redAccent.withOpacity(0.15),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: const Text(
+              "MARKET IS CLOSED (Hours: Mon-Fri, 9:15 AM - 3:30 PM IST)",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+          ),
+        
+        // Index Selector Header
+        Container(
+          color: const Color(0xFF151D2A),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              DropdownButton<String>(
+                value: selectedSymbol,
+                dropdownColor: const Color(0xFF151D2A),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                underline: Container(),
+                items: globalIndices.keys.map((String symbol) {
+                  return DropdownMenuItem<String>(
+                    value: symbol,
+                    child: Text(symbol),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => selectedSymbol = val);
+                },
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text("₹${indexData.spotPrice.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
+                  Text("${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
+                ],
+              )
+            ],
+          ),
+        ),
+
+        // Chain Headers
+        Container(
+          color: const Color(0xFF0B0E14),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          child: const Row(
+            children: [
+              Expanded(child: Text("CALLS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.greenAccent, fontSize: 12))),
+              Expanded(child: Text("STRIKE", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12))),
+              Expanded(child: Text("PUTS", textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent, fontSize: 12))),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Colors.white10),
+
+        // Strike Scroll List
+        Expanded(
+          child: ListView.builder(
+            itemCount: strikes.length,
+            itemBuilder: (context, index) {
+              int strike = strikes[index];
+              double callP = _calculateCallPrice(indexData.spotPrice, strike);
+              double putP = _calculatePutPrice(indexData.spotPrice, strike);
+
+              bool isSpotHere = false;
+              if (index < strikes.length - 1) {
+                if (indexData.spotPrice >= strike && indexData.spotPrice < strikes[index + 1]) {
+                  isSpotHere = true;
+                }
+              }
+
+              return Column(
+                children: [
+                  if (isSpotHere)
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Text(
+                        "SPOT: ${indexData.spotPrice.toStringAsFixed(2)} | ${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.amberAccent),
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: strike < indexData.spotPrice ? Colors.green.withOpacity(0.04) : Colors.red.withOpacity(0.04),
+                      border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        // CALL
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _buyOption("${indexData.symbol} $strike CE", callP, indexData.lotSize),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("₹${callP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                                const Text("CALL", style: TextStyle(color: Colors.grey, fontSize: 9)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // STRIKE
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text("$strike", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                              Container(
+                                height: 2,
+                                width: 25,
+                                color: strike < indexData.spotPrice ? Colors.green : Colors.red,
+                              )
+                            ],
+                          ),
+                        ),
+                        // PUT
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _buyOption("${indexData.symbol} $strike PE", putP, indexData.lotSize),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text("₹${putP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                                const Text("PUT", style: TextStyle(color: Colors.grey, fontSize: 9)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -294,41 +497,21 @@ class MarketWatchScreen extends StatefulWidget {
 
 class _MarketWatchScreenState extends State<MarketWatchScreen> {
   String _searchQuery = "";
-  String _selectedCategory = "ALL";
 
   @override
   Widget build(BuildContext context) {
-    List<StockItem> filteredStocks = globalStocks.where((s) {
-      bool matchesSearch = s.symbol.toLowerCase().contains(_searchQuery.toLowerCase());
-      if (_selectedCategory == "OPTIONS") {
-        return matchesSearch && s.segment.contains("OPTION");
-      } else if (_selectedCategory == "STOCKS") {
-        return matchesSearch && s.segment.contains("STK");
-      } else if (_selectedCategory == "INDICES") {
-        return matchesSearch && s.segment.contains("INDEX");
-      }
-      return matchesSearch;
+    List<IndexData> filteredIndices = globalIndices.values.where((s) {
+      return s.symbol.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
     return Column(
       children: [
-        if (!widget.isMarketOpen)
-          Container(
-            width: double.infinity,
-            color: Colors.redAccent.withOpacity(0.15),
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: const Text(
-              "MARKET IS CLOSED (Hours: Mon-Fri, 9:15 AM - 3:30 PM IST)",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
-            ),
-          ),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: TextField(
             onChanged: (val) => setState(() => _searchQuery = val),
             decoration: InputDecoration(
-              hintText: "Search Stock, Call / Put (e.g. NIFTY CE)...",
+              hintText: "Search Index...",
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
               fillColor: const Color(0xFF151D2A),
@@ -337,50 +520,26 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
             ),
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: ["ALL", "INDICES", "OPTIONS", "STOCKS"].map((cat) {
-              bool isSelected = _selectedCategory == cat;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: FilterChip(
-                  label: Text(cat),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFF00C853),
-                  onSelected: (bool selected) {
-                    setState(() => _selectedCategory = cat);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 8),
         Expanded(
           child: ListView.separated(
-            itemCount: filteredStocks.length,
+            itemCount: filteredIndices.length,
             separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
             itemBuilder: (context, index) {
-              final stock = filteredStocks[index];
+              final stock = filteredIndices[index];
               final isPos = stock.change >= 0;
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                subtitle: Text("${stock.segment} | H: ${stock.high.toStringAsFixed(1)} L: ${stock.low.toStringAsFixed(1)}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                subtitle: Text("NSE INDEX | Lot: ${stock.lotSize}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text("₹${stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
+                    Text("₹${stock.spotPrice.toStringAsFixed(2)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
                     Text("${isPos ? '+' : ''}${stock.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
                   ],
                 ),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => DetailedStockScreen(user: widget.user, stock: stock, isMarketOpen: widget.isMarketOpen)));
-                },
               );
             },
           ),
@@ -390,186 +549,12 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
   }
 }
 
-class DetailedStockScreen extends StatefulWidget {
-  final UserAccount user;
-  final StockItem stock;
-  final bool isMarketOpen;
-
-  const DetailedStockScreen({super.key, required this.user, required this.stock, required this.isMarketOpen});
-
-  @override
-  State<DetailedStockScreen> createState() => _DetailedStockScreenState();
-}
-
-class _DetailedStockScreenState extends State<DetailedStockScreen> {
-  int _lots = 1;
-
-  void _placeTrade(String type) {
-    if (!widget.isMarketOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market is closed! Cannot place order outside market hours.')));
-      return;
-    }
-
-    double totalMargin = _lots * widget.stock.lotSize * widget.stock.price * 0.1;
-    if (totalMargin > widget.user.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order Rejected! Insufficient Wallet Balance.')));
-      return;
-    }
-
-    globalPositions.add(PositionItem(
-      symbol: widget.stock.symbol,
-      lots: _lots,
-      lotSize: widget.stock.lotSize,
-      buyPrice: widget.stock.price,
-      type: type,
-    ));
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: type == 'BUY' ? Colors.green : Colors.red, content: Text('$type Order Executed for ${widget.stock.symbol}!')));
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isPos = widget.stock.change >= 0;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.stock.symbol)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("₹${widget.stock.price.toStringAsFixed(2)}", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-                    Text("${isPos ? '+' : ''}${widget.stock.change.toStringAsFixed(2)}", style: TextStyle(color: isPos ? const Color(0xFF00C853) : Colors.redAccent, fontSize: 14)),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
-                  child: Text("Lot Size: ${widget.stock.lotSize}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                )
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text("LIVE MARKET CHART", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Container(
-              height: 180,
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: const Color(0xFF151D2A), borderRadius: BorderRadius.circular(8)),
-              child: CustomPaint(
-                painter: CandlestickPainter(priceHistory: widget.stock.priceHistory),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Select Lots:"),
-                Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => setState(() { if (_lots > 1) _lots--; })),
-                    Text("$_lots", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => setState(() => _lots++)),
-                  ],
-                )
-              ],
-            ),
-            Text("Required Margin: ₹${(_lots * widget.stock.lotSize * widget.stock.price * 0.1).toStringAsFixed(2)}", style: const TextStyle(color: Colors.amber, fontSize: 13)),
-            const Spacer(),
-            Row(
-              children: [
-               Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.isMarketOpen ? const Color(0xFF00C853) : Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: () => _placeTrade('BUY'),
-                    child: const Text('BUY', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.isMarketOpen ? Colors.redAccent : Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: () => _placeTrade('SELL'),
-                    child: const Text('SELL', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class CandlestickPainter extends CustomPainter {
-  final List<double> priceHistory;
-  CandlestickPainter({required this.priceHistory});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (priceHistory.length < 2) return;
-
-    double maxP = priceHistory.reduce(max);
-    double minP = priceHistory.reduce(min);
-    if (maxP == minP) maxP += 1.0;
-
-    double candleWidth = size.width / priceHistory.length;
-
-    for (int i = 0; i < priceHistory.length; i++) {
-      double current = priceHistory[i];
-      double previous = i > 0 ? priceHistory[i - 1] : current;
-      bool isGreen = current >= previous;
-
-      Paint paint = Paint()
-        ..color = isGreen ? const Color(0xFF00C853) : Colors.redAccent
-        ..strokeWidth = 2.0
-        ..style = PaintingStyle.fill;
-
-      double x = i * candleWidth + (candleWidth / 2);
-      double highY = size.height - ((current - minP) / (maxP - minP) * size.height * 0.8) - 10;
-      double lowY = size.height - ((previous - minP) / (maxP - minP) * size.height * 0.8) - 10;
-
-      canvas.drawRect(
-        Rect.fromLTRB(x - (candleWidth * 0.3), highY, x + (candleWidth * 0.3), lowY),
-        paint,
-      );
-
-      canvas.drawLine(Offset(x, highY - 5), Offset(x, lowY + 5), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
 class PortfolioScreen extends StatelessWidget {
   final UserAccount user;
   const PortfolioScreen({super.key, required this.user});
 
   double _calculatePnL(PositionItem pos) {
-    try {
-      final currentStock = globalStocks.firstWhere((s) => s.symbol == pos.symbol);
-      double diff = currentStock.price - pos.buyPrice;
-      if (pos.type == 'SELL') diff = -diff;
-      return diff * (pos.lots * pos.lotSize);
-    } catch (e) {
-      return 0.0;
-    }
+    return 0.0;
   }
 
   @override
