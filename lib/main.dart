@@ -176,7 +176,6 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void initState() {
     super.initState();
-    // Live Stock Prices Fluctuations
     _marketTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
       if (mounted) {
         setState(() {
@@ -296,7 +295,7 @@ class _DetailedStockScreenState extends State<DetailedStockScreen> {
   int _lots = 1;
 
   void _placeTrade(String type) {
-    double totalMargin = _lots * widget.stock.lotSize * widget.stock.price * 0.1; // 10% Required Margin
+    double totalMargin = _lots * widget.stock.lotSize * widget.stock.price * 0.1;
     if (totalMargin > widget.user.balance) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order Rejected! Insufficient Balance in Wallet.')));
       return;
@@ -504,4 +503,8 @@ class _WalletScreenState extends State<WalletScreen> {
               controller: _amountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: "Enter Amount (₹)", border: OutlineInputBorder()),
-              
+            ),
+          ],
+        ),
+        actions: [
+   
