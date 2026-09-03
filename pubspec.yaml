@@ -1,5 +1,5 @@
 name: laxmi_trading
-description: "Laxmi Trading - Real-Time Share Market & Admin Control App"
+description: "Laxmi Trading Platform"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.2.0
-  web_socket_channel: ^2.4.1
 
 dev_dependencies:
   flutter_test:
