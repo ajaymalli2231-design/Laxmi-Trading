@@ -81,7 +81,7 @@ class PositionItem {
   final int lots;
   final int lotSize;
   final double buyPrice;
-  final String type; // BUY or SELL
+  final String type;
 
   PositionItem({
     required this.symbol,
@@ -507,4 +507,4 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
         ),
         actions: [
-   
+          TextButt
