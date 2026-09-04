@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1035984859389",
+    "project_id": "laxmi-trading-a3a97",
+    "storage_bucket": "laxmi-trading-a3a97.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035984859389:android:e82f53b9e115a43b864e94",
+        "android_client_info": {
+          "package_name": "com.laxmitrading.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAZL0Y2sd7QEQNOVIHnc54O9AcCySJ5gU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
