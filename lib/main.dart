@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -14,291 +15,397 @@ class LaxmiTradingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Laxmi Trading Terminal',
+      title: 'Laxmi Trading',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B0E14),
-        cardColor: const Color(0xFF151D2A),
-        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF151D2A), elevation: 0),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00C853),
-          secondary: Color(0xFF2962FF),
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFF9FAFC),
+        primaryColor: const Color(0xFF00D09C),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black),
+          titleTextStyle: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      home: const AuthScreen(),
+      home: const MainDashboard(),
     );
   }
 }
 
+// ---------------------------------------------------------------------------
+// DATA MODELS & GLOBAL STATE
+// ---------------------------------------------------------------------------
 class UserAccount {
   String name;
-  String phone;
-  String password;
   double balance;
-  double limit;
-  bool isAdmin;
-
-  UserAccount({
-    required this.name,
-    required this.phone,
-    required this.password,
-    this.balance = 0.0,
-    this.limit = 0.0,
-    this.isAdmin = false,
-  });
+  UserAccount({required this.name, this.balance = 100000.0});
 }
 
-List<UserAccount> globalUsers = [
-  UserAccount(name: 'Ajay (Admin)', phone: '9999999999', password: 'Ajay999', balance: 10024000.0, limit: 50000000.0, isAdmin: true),
-  UserAccount(name: 'Rahul Sharma', phone: '9876543210', password: 'user123', balance: 50000.0, limit: 200000.0, isAdmin: false),
-];
+UserAccount currentUser = UserAccount(name: "Ajay", balance: 100000.0);
 
 class IndexData {
   final String symbol;
-  final String tvSymbol; // TradingView Symbol
+  final String tvSymbol;
   double spotPrice;
   double change;
-  final int minStrike;
-  final int maxStrike;
-  final int step;
-  final int lotSize;
+  double changePercent;
+  double todaysLow;
+  double todaysHigh;
 
   IndexData({
     required this.symbol,
     required this.tvSymbol,
     required this.spotPrice,
     required this.change,
-    required this.minStrike,
-    required this.maxStrike,
-    required this.step,
-    required this.lotSize,
+    required this.changePercent,
+    required this.todaysLow,
+    required this.todaysHigh,
   });
 }
 
 Map<String, IndexData> globalIndices = {
-  "NIFTY 50": IndexData(symbol: "NIFTY 50", tvSymbol: "NSE:NIFTY", spotPrice: 23873.45, change: -41.00, minStrike: 22100, maxStrike: 26400, step: 50, lotSize: 50),
-  "BANKNIFTY": IndexData(symbol: "BANKNIFTY", tvSymbol: "NSE:BANKNIFTY", spotPrice: 48933.69, change: -131.61, minStrike: 43500, maxStrike: 69000, step: 100, lotSize: 15),
-  "SENSEX": IndexData(symbol: "SENSEX", tvSymbol: "BSE:SENSEX", spotPrice: 78500.20, change: 120.50, minStrike: 69100, maxStrike: 86000, step: 100, lotSize: 10),
-  "FINNIFTY": IndexData(symbol: "FINNIFTY", tvSymbol: "NSE:FINNIFTY", spotPrice: 21450.10, change: 15.30, minStrike: 20000, maxStrike: 23500, step: 50, lotSize: 40),
-  "MIDCPNIFTY": IndexData(symbol: "MIDCPNIFTY", tvSymbol: "NSE:MIDCPNIFTY", spotPrice: 12300.80, change: -22.10, minStrike: 11000, maxStrike: 13500, step: 25, lotSize: 75),
+  "NIFTY 50": IndexData(
+    symbol: "NIFTY 50",
+    tvSymbol: "NSE:NIFTY",
+    spotPrice: 23936.30,
+    change: 62.85,
+    changePercent: 0.26,
+    todaysLow: 23850.10,
+    todaysHigh: 24010.50,
+  ),
+  "Bse Sensex": IndexData(
+    symbol: "Bse Sensex",
+    tvSymbol: "BSE:SENSEX",
+    spotPrice: 76655.49,
+    change: 502.63,
+    changePercent: 0.66,
+    todaysLow: 76529.50,
+    todaysHigh: 76883.14,
+  ),
 };
 
-class PositionItem {
-  final String symbol;
-  final int lots;
-  final int lotSize;
-  final double buyPrice;
-  final String type;
-
-  PositionItem({
-    required this.symbol,
-    required this.lots,
-    required this.lotSize,
-    required this.buyPrice,
-    required this.type,
-  });
-}
-
-List<PositionItem> globalPositions = [];
-
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
-
-  @override
-  State<AuthScreen> createState() => _AuthScreenState();
-}
-
-class _AuthScreenState extends State<AuthScreen> {
-  final _phoneController = TextEditingController(text: "9999999999");
-  final _passwordController = TextEditingController(text: "Ajay999");
-
-  void _handleLogin() {
-    String phone = _phoneController.text.trim();
-    String password = _passwordController.text.trim();
-
-    try {
-      UserAccount user = globalUsers.firstWhere((u) => u.phone == phone && u.password == password);
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainDashboard(user: user)));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('गलत मोबाइल नंबर या पासवर्ड!')));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(Icons.show_chart_rounded, size: 80, color: Color(0xFF00C853)),
-            const SizedBox(height: 10),
-            const Text('LAXMI TERMINAL', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-            const Text('Pro Trading Engine with TradingView', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-            const SizedBox(height: 40),
-            TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number', border: OutlineInputBorder())),
-            const SizedBox(height: 16),
-            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder())),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), padding: const EdgeInsets.symmetric(vertical: 16)),
-              onPressed: _handleLogin,
-              child: const Text('LOGIN TO TERMINAL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// ---------------------------------------------------------------------------
+// MAIN DASHBOARD (GROWW LAYOUT)
+// ---------------------------------------------------------------------------
 class MainDashboard extends StatefulWidget {
-  final UserAccount user;
-  const MainDashboard({super.key, required this.user});
+  const MainDashboard({super.key});
 
   @override
   State<MainDashboard> createState() => _MainDashboardState();
 }
 
-class _MainDashboardState extends State<MainDashboard> {
-  int _selectedIndex = 0;
-  Timer? _marketTimer;
-  final Random _rnd = Random();
-  bool _isMarketOpen = false;
+class _MainDashboardState extends State<MainDashboard> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _bottomNavIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _checkMarketTimeAndTick();
-    _marketTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _checkMarketTimeAndTick();
-    });
-  }
-
-  void _checkMarketTimeAndTick() {
-    DateTime now = DateTime.now();
-    bool isWeekday = now.weekday >= 1 && now.weekday <= 5;
-    int currentMinutes = now.hour * 60 + now.minute;
-    int openMinutes = 9 * 60 + 15;
-    int closeMinutes = 15 * 60 + 30;
-
-    bool marketOpenNow = isWeekday && (currentMinutes >= openMinutes && currentMinutes <= closeMinutes);
-
-    if (mounted) {
-      setState(() {
-        _isMarketOpen = marketOpenNow;
-        if (_isMarketOpen) {
-          globalIndices.forEach((key, indexData) {
-            double tick = (_rnd.nextDouble() * 3.0 - 1.5);
-            indexData.spotPrice += tick;
-            indexData.change += tick;
-          });
-        }
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _marketTimer?.cancel();
-    super.dispose();
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> pages = [
-      MarketWatchScreen(user: widget.user, isMarketOpen: _isMarketOpen),
-      OptionChainScreen(user: widget.user, isMarketOpen: _isMarketOpen),
-      PortfolioScreen(user: widget.user),
-      WalletScreen(user: widget.user),
+    List<Widget> bottomPages = [
+      _buildExploreTabContent(context),
+      const OptionChainScreen(),
+      WalletScreen(user: currentUser, onBalanceChanged: () => setState(() {})),
     ];
-
-    if (widget.user.isAdmin) {
-      pages.add(AdminPanelScreen(adminUser: widget.user));
-    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: 16,
+        title: Row(
           children: [
-            Row(
-              children: [
-                Text(widget.user.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _isMarketOpen ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: _isMarketOpen ? Colors.green : Colors.red),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.circle, size: 8, color: _isMarketOpen ? Colors.green : Colors.red),
-                      const SizedBox(width: 4),
-                      Text(_isMarketOpen ? "LIVE" : "CLOSED", style: TextStyle(fontSize: 10, color: _isMarketOpen ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                )
-              ],
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: Color(0xFF00D09C),
+              child: Icon(Icons.person, color: Colors.white, size: 20),
             ),
-            Text('Balance: ₹${widget.user.balance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.greenAccent)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F4F7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.grey, size: 20),
+                    SizedBox(width: 8),
+                    Text("Search Laxmi", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AuthScreen()))),
-        ],
       ),
-      body: pages[_selectedIndex],
+      body: _bottomNavIndex != 0
+          ? bottomPages[_bottomNavIndex]
+          : Column(
+              children: [
+                // Top Indices Bar (NIFTY & SENSEX)
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _openStockDetail(context, globalIndices["NIFTY 50"]!),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("NIFTY 50", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              Row(
+                                children: [
+                                  Text("${globalIndices["NIFTY 50"]!.spotPrice.toStringAsFixed(2)} ", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text("+${globalIndices["NIFTY 50"]!.change}", style: const TextStyle(fontSize: 11, color: Color(0xFF00D09C), fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(height: 16, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 12)),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _openStockDetail(context, globalIndices["Bse Sensex"]!),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("SENSEX", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              Row(
+                                children: [
+                                  Text("${globalIndices["Bse Sensex"]!.spotPrice.toStringAsFixed(2)} ", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text("+${globalIndices["Bse Sensex"]!.change}", style: const TextStyle(fontSize: 11, color: Color(0xFF00D09C), fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+
+                // Top Navigation Tabs
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.black,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: const Color(0xFF00D09C),
+                    indicatorWeight: 3,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    tabs: const [
+                      Tab(text: "Explore"),
+                      Tab(text: "Holdings"),
+                      Tab(text: "Positions"),
+                      Tab(text: "Orders"),
+                    ],
+                  ),
+                ),
+
+                // Tab Body
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildExploreTabContent(context),
+                      const Center(child: Text("Holdings Empty")),
+                      const Center(child: Text("No Open Positions")),
+                      const Center(child: Text("No Pending Orders")),
+                    ],
+                  ),
+                ),
+              ],
+            ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: const Color(0xFF00C853),
+        currentIndex: _bottomNavIndex,
+        onTap: (i) => setState(() => _bottomNavIndex = i),
+        selectedItemColor: const Color(0xFF00D09C),
         unselectedItemColor: Colors.grey,
-        backgroundColor: const Color(0xFF151D2A),
         type: BottomNavigationBarType.fixed,
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.candlestick_chart), label: 'Watchlist'),
-          const BottomNavigationBarItem(icon: Icon(Icons.table_chart_rounded), label: 'Option Chain'),
-          const BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Positions'),
-          const BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Wallet'),
-          if (widget.user.isAdmin) const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Admin'),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Stocks'),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'F&O'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Pay'),
         ],
       ),
     );
   }
+
+  Widget _buildExploreTabContent(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text("Recently viewed", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 90,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildRecentItem("GUJTLRM", "0.00%", Colors.grey, Colors.green.shade100, "G"),
+              _buildRecentItem("CHANDRI...", "+4.96%", const Color(0xFF00D09C), Colors.red.shade100, "C"),
+              _buildRecentItem("GTLINFRA", "+0.86%", const Color(0xFF00D09C), Colors.blue.shade100, "GTL"),
+              _buildRecentItem("ADANIGRE...", "+1.22%", const Color(0xFF00D09C), Colors.amber.shade100, "adani"),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Text("Most traded on Laxmi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.1,
+          children: [
+            _buildStockCard(context, "IFCI", "₹101.59", "+5.68 (5.92%)", true, "IFCI", "NSE:IFCI", 95.0, 105.0),
+            _buildStockCard(context, "Skipper", "₹594.25", "+47.35 (8.66%)", true, "SKIPPER", "NSE:SKIPPER", 540.0, 610.0),
+            _buildStockCard(context, "PC Jeweller", "₹11.52", "+1.00 (9.51%)", true, "PCJ", "NSE:PCJEWELLER", 10.0, 12.5),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: const Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("See more ", style: TextStyle(color: Color(0xFF00D09C), fontWeight: FontWeight.bold, fontSize: 16)),
+                    Icon(Icons.arrow_forward_ios, color: Color(0xFF00D09C), size: 14),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentItem(String title, String change, Color changeColor, Color bgColor, String logoText) {
+    return Container(
+      width: 75,
+      margin: const EdgeInsets.only(right: 12),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text(logoText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+          ),
+          const SizedBox(height: 6),
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(change, style: TextStyle(fontSize: 10, color: changeColor, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockCard(BuildContext context, String title, String priceStr, String changeStr, bool isPositive, String logo, String symbol, double low, double high) {
+    double priceVal = double.tryParse(priceStr.replaceAll('₹', '').replaceAll(',', '')) ?? 100.0;
+    return InkWell(
+      onTap: () {
+        _openStockDetail(
+          context,
+          IndexData(
+            symbol: title,
+            tvSymbol: symbol,
+            spotPrice: priceVal,
+            change: 1.0,
+            changePercent: 1.0,
+            todaysLow: low,
+            todaysHigh: high,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+              child: Text(logo, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(priceStr, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(changeStr, style: TextStyle(fontSize: 11, color: isPositive ? const Color(0xFF00D09C) : Colors.red, fontWeight: FontWeight.bold)),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openStockDetail(BuildContext context, IndexData item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => StockDetailScreen(item: item)),
+    );
+  }
 }
 
-// TRADINGVIEW LIVE CANDLESTICK CHART SCREEN
-class TradingViewChartScreen extends StatefulWidget {
-  final String symbol;
-  final String tvSymbol;
-
-  const TradingViewChartScreen({super.key, required this.symbol, required this.tvSymbol});
+// ---------------------------------------------------------------------------
+// STOCK / INDEX DETAIL VIEW (LIVE CHART + PERFORMANCE BAR)
+// ---------------------------------------------------------------------------
+class StockDetailScreen extends StatefulWidget {
+  final IndexData item;
+  const StockDetailScreen({super.key, required this.item});
 
   @override
-  State<TradingViewChartScreen> createState() => _TradingViewChartScreenState();
+  State<StockDetailScreen> createState() => _StockDetailScreenState();
 }
 
-class _TradingViewChartScreenState extends State<TradingViewChartScreen> {
-  late final WebViewController _controller;
+class _StockDetailScreenState extends State<StockDetailScreen> with SingleTickerProviderStateMixin {
+  late final WebViewController _webViewController;
+  late TabController _tabController;
+
+  String selectedTimeframe = "1D";
+  bool isCandleView = false;
+  final List<String> timeframes = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y", "All"];
 
   @override
   void initState() {
     super.initState();
-    
-    // TradingView Widget HTML Code
-    final String htmlContent = '''
+    _tabController = TabController(length: 3, vsync: this);
+    _initWebView();
+  }
+
+  void _initWebView() {
+    String chartStyle = isCandleView ? "1" : "3";
+    String htmlContent = '''
     <!DOCTYPE html>
     <html>
     <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
       <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background-color: #0d1117; }
-        #tradingview_widget { height: 100%; width: 100%; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #FFFFFF; overflow: hidden; }
+        #tradingview_widget { width: 100%; height: 100%; }
       </style>
     </head>
     <body>
@@ -307,16 +414,17 @@ class _TradingViewChartScreenState extends State<TradingViewChartScreen> {
       <script type="text/javascript">
         new TradingView.widget({
           "autosize": true,
-          "symbol": "${widget.tvSymbol}",
+          "symbol": "${widget.item.tvSymbol}",
           "interval": "5",
           "timezone": "Asia/Kolkata",
-          "theme": "dark",
-          "style": "1",
-          "locale": "in",
-          "toolbar_bg": "#f1f3f6",
+          "theme": "light",
+          "style": "$chartStyle",
+          "locale": "en",
+          "toolbar_bg": "#FFFFFF",
           "enable_publishing": false,
-          "hide_side_toolbar": false,
-          "allow_symbol_change": true,
+          "hide_top_toolbar": true,
+          "hide_legend": true,
+          "save_image": false,
           "container_id": "tradingview_widget"
         });
       </script>
@@ -324,374 +432,647 @@ class _TradingViewChartScreenState extends State<TradingViewChartScreen> {
     </html>
     ''';
 
-    _controller = WebViewController()
+    _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF0D1117))
-      ..loadHtmlString(htmlContent);
+      ..setBackgroundColor(Colors.white)
+      ..loadRequest(Uri.dataFromString(htmlContent, mimeType: 'text/html', encoding: Encoding.getByName('utf-8')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double currentProgress = ((widget.item.spotPrice - widget.item.todaysLow) /
+            (widget.item.todaysHigh - widget.item.todaysLow))
+        .clamp(0.0, 1.0);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.bookmark_border, color: Colors.black87), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.search, color: Colors.black87), onPressed: () {}),
+        ],
+      ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.item.symbol, style: const TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Text(widget.item.spotPrice.toStringAsFixed(2), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text("+${widget.item.change.toStringAsFixed(2)} (${widget.item.changePercent.toStringAsFixed(2)}%)",
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF00D09C), fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 4),
+                          Text(selectedTimeframe, style: const TextStyle(fontSize: 12, color: Colors.black45, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(height: 230, child: WebViewWidget(controller: _webViewController)),
+                const SizedBox(height: 12),
+
+                // Timeframe Filter Chips & Candlestick Toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: timeframes.map((tf) {
+                              bool isSelected = selectedTimeframe == tf;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6.0),
+                                child: ChoiceChip(
+                                  label: Text(tf, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.black87 : Colors.black54)),
+                                  selected: isSelected,
+                                  selectedColor: Colors.grey.shade200,
+                                  backgroundColor: Colors.white,
+                                  side: BorderSide(color: isSelected ? Colors.grey.shade400 : Colors.transparent),
+                               onSelected: (bool selected) {
+                                    if (selected) setState(() => selectedTimeframe = tf);
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(isCandleView ? Icons.show_chart : Icons.candlestick_chart, color: const Color(0xFF00D09C), size: 22),
+                        onPressed: () {
+                          setState(() {
+                            isCandleView = !isCandleView;
+                            _initWebView();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(height: 1, thickness: 1, color: Color(0xFFF2F4F7)),
+
+                TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.black87,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Colors.black87,
+                  indicatorWeight: 2,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  tabs: const [Tab(text: "Overview"), Tab(text: "F&O"), Tab(text: "ETFs")],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Performance Section (Today's Low & High Bar)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Text("Performance", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                          SizedBox(width: 6),
+                          Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Today's Low", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Text(widget.item.todaysLow.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text("Today's High", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Text(widget.item.todaysHigh.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          Container(height: 4, width: double.infinity, decoration: BoxDecoration(color: const Color(0xFF00D09C), borderRadius: BorderRadius.circular(2))),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Positioned(
+                                left: (constraints.maxWidth * currentProgress) - 6,
+                                child: const Icon(Icons.arrow_drop_up, size: 24, color: Colors.black87),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Bottom Fixed Action Buttons (Chart & Chain)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.candlestick_chart_outlined, color: Colors.black87, size: 20),
+                      label: const Text("Chart", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 15)),
+                      style: OutlinedButton.styleFrom(backgroundColor: const Color(0xFFF2F4F7), side: BorderSide.none, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const OptionChainScreen()));
+                      },
+                      icon: const Icon(Icons.swap_calls_outlined, color: Colors.black87, size: 20),
+                      label: const Text("Chain", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 15)),
+                      style: OutlinedButton.styleFrom(backgroundColor: const Color(0xFFF2F4F7), side: BorderSide.none, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ORDER BUY SCREEN (EXACT GROWW ORDER SHEET)
+// ---------------------------------------------------------------------------
+class OrderBuyScreen extends StatefulWidget {
+  final String stockName;
+  final double currentPrice;
+  final int lotSize;
+  final double userBalance;
+
+  const OrderBuyScreen({
+    super.key,
+    required this.stockName,
+    required this.currentPrice,
+    this.lotSize = 65,
+    required this.userBalance,
+  });
+
+  @override
+  State<OrderBuyScreen> createState() => _OrderBuyScreenState();
+}
+
+class _OrderBuyScreenState extends State<OrderBuyScreen> {
+  bool isDelivery = true;
+  int quantity = 65;
+
+  @override
+  Widget build(BuildContext context) {
+    double approxReq = quantity * widget.currentPrice;
+    bool hasEnoughBalance = widget.userBalance >= approxReq;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.stockName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text("₹${widget.currentPrice.toStringAsFixed(2)} (5.10%)", style: const TextStyle(fontSize: 12, color: Color(0xFF00D09C))),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text("Delivery"),
+                        selected: isDelivery,
+                        selectedColor: Colors.grey.shade200,
+                        backgroundColor: Colors.white,
+                        labelStyle: TextStyle(color: isDelivery ? Colors.black : Colors.grey, fontWeight: FontWeight.bold),
+                        onSelected: (val) => setState(() => isDelivery = true),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text("Intraday"),
+                        selected: !isDelivery,
+                        selectedColor: Colors.grey.shade200,
+                        backgroundColor: Colors.white,
+                        labelStyle: TextStyle(color: !isDelivery ? Colors.black : Colors.grey, fontWeight: FontWeight.bold),
+                        onSelected: (val) => setState(() => isDelivery = false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Qty  1 lot x ${widget.lotSize}", style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+                      Container(
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, size: 18),
+                              onPressed: () {
+                                if (quantity > widget.lotSize) setState(() => quantity -= widget.lotSize);
+                              },
+                            ),
+                            Text("$quantity", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 18),
+                              onPressed: () => setState(() => quantity += widget.lotSize),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Text("Price Market ", style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+                          Icon(Icons.unfold_more, size: 16, color: Colors.grey),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                        child: const Text("At Market", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text("Add stoploss/target", style: TextStyle(color: Colors.grey, decoration: TextDecoration.underline, fontSize: 13)),
+                  const Spacer(),
+                  if (!hasEnoughBalance)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(8)),
+                      child: const Text("Available balance is not enough.", textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF8D6E63), fontSize: 13, fontWeight: FontWeight.w500)),
+                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Balance : ₹${widget.userBalance.toStringAsFixed(0)}", style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                      Row(
+                        children: [
+                          const Text("Approx req : ", style: TextStyle(fontSize: 13, color: Colors.grey)),
+                          Text("₹${approxReq.toStringAsFixed(0)} ", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          const Icon(Icons.refresh, size: 14, color: Colors.grey),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: hasEnoughBalance ? () {} : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: hasEnoughBalance ? const Color(0xFF00D09C) : const Color(0xFFC8E6C9),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text("Buy", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ),
+                      ),
+                      if (!hasEnoughBalance) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00D09C),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text("Add money", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            color: const Color(0xFFF2F4F7),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 12,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 2.2),
+              itemBuilder: (context, index) {
+                if (index == 9) return const SizedBox();
+                if (index == 10) return _buildPadBtn("0");
+                if (index == 11) return const Icon(Icons.backspace_outlined, size: 20, color: Colors.black87);
+                return _buildPadBtn("${index + 1}");
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPadBtn(String txt) {
+    return Center(child: Text(txt, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OPTION CHAIN SCREEN
+// ---------------------------------------------------------------------------
+class OptionChainScreen extends StatelessWidget {
+  const OptionChainScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    List<int> strikes = [23800, 23850, 23900, 23950, 24000, 24050, 24100];
+    return Scaffold(
+      appBar: AppBar(title: const Text("Option Chain")),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            child: const Row(
+              children: [
+                Expanded(child: Text("CALLS", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00D09C)))),
+                Expanded(child: Text("STRIKE", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(child: Text("PUTS", textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: strikes.length,
+              itemBuilder: (context, index) {
+                int strike = strikes[index];
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OrderBuyScreen(
+                          stockName: "NIFTY $strike CE",
+                          currentPrice: 102.05,
+                          userBalance: currentUser.balance,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                    child: Row(
+                      children: [
+                        const Expanded(child: Text("₹120.50", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00D09C)))),
+                        Expanded(child: Text("$strike", textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
+                        const Expanded(child: Text("₹85.20", textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WALLET / AUTO-REFILL SETTLEMENT SCREEN
+// ---------------------------------------------------------------------------
+class WalletScreen extends StatefulWidget {
+  final UserAccount user;
+  final VoidCallback onBalanceChanged;
+  const WalletScreen({super.key, required this.user, required this.onBalanceChanged});
+
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  final TextEditingController _amountController = TextEditingController();
+
+  void _showAddMoneyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 16, right: 16, top: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Add Money to Laxmi Balance", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(border: OutlineInputBorder(), labelText: "Enter Amount (₹)"),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    double? added = double.tryParse(_amountController.text);
+                    if (added != null && added > 0) {
+                      setState(() {
+                        widget.user.balance += added;
+                      });
+                      widget.onBalanceChanged();
+                      _amountController.clear();
+                      Navigator.pop(context);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D09C)),
+                  child: const Text("ADD FUNDS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.symbol} Live Chart', style: const TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _controller.reload(),
-          )
-        ],
-      ),
-      body: WebViewWidget(controller: _controller),
-    );
-  }
-}
-
-// WATCHLIST SCREEN
-class MarketWatchScreen extends StatefulWidget {
-  final UserAccount user;
-  final bool isMarketOpen;
-  const MarketWatchScreen({super.key, required this.user, required this.isMarketOpen});
-
-  @override
-  State<MarketWatchScreen> createState() => _MarketWatchScreenState();
-}
-
-class _MarketWatchScreenState extends State<MarketWatchScreen> {
-  String _searchQuery = "";
-
-  @override
-  Widget build(BuildContext context) {
-    List<IndexData> filteredIndices = globalIndices.values.where((s) {
-      return s.symbol.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: TextField(
-            onChanged: (val) => setState(() => _searchQuery = val),
-            decoration: InputDecoration(
-              hintText: "Search Index...",
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: const Color(0xFF151D2A),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            ),
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            itemCount: filteredIndices.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
-            itemBuilder: (context, index) {
-              final stock = filteredIndices[index];
-              final isPos = stock.change >= 0;
-
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TradingViewChartScreen(
-                        symbol: stock.symbol,
-                        tvSymbol: stock.tvSymbol,
-                      ),
-                    ),
-                  );
-                },
-                title: Row(
-                  children: [
-                    Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.show_chart, size: 18, color: Colors.blueAccent),
-                  ],
-                ),
-                subtitle: Text("NSE INDEX | Lot: ${stock.lotSize}", style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text("₹${stock.spotPrice.toStringAsFixed(2)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-                    Text("${isPos ? '+' : ''}${stock.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: isPos ? const Color(0xFF00C853) : Colors.redAccent)),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// REALISTIC OPTION CHAIN SCREEN WITH CHART BUTTON
-class OptionChainScreen extends StatefulWidget {
-  final UserAccount user;
-  final bool isMarketOpen;
-
-  const OptionChainScreen({super.key, required this.user, required this.isMarketOpen});
-
-  @override
-  State<OptionChainScreen> createState() => _OptionChainScreenState();
-}
-
-class _OptionChainScreenState extends State<OptionChainScreen> {
-  String selectedSymbol = "NIFTY 50";
-
-  void _buyOption(String optionSymbol, double price, int lotSize) {
-    if (!widget.isMarketOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market is closed! Cannot place order outside market hours.')));
-      return;
-    }
-
-    double margin = lotSize * price;
-
-    if (margin > widget.user.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient Wallet Balance!')));
-      return;
-    }
-
-    globalPositions.add(PositionItem(
-      symbol: optionSymbol,
-      lots: 1,
-      lotSize: lotSize,
-      buyPrice: price,
-      type: 'BUY',
-    ));
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('BUY Order Executed for $optionSymbol @ ₹${price.toStringAsFixed(2)}!')));
-  }
-
-  double _getCallPrice(double spot, int strike) {
-    double distance = (spot - strike);
-    if (distance > 0) {
-      return (distance * 0.85) + 40.0 + (spot * 0.001);
-    } else {
-      double otmDist = (strike - spot);
-      double price = 120.0 * exp(-otmDist / 220.0);
-      return max(0.15, price);
-    }
-  }
-
-  double _getPutPrice(double spot, int strike) {
-    double distance = (strike - spot);
-    if (distance > 0) {
-      return (distance * 0.85) + 40.0 + (spot * 0.001);
-    } else {
-      double otmDist = (spot - strike);
-      double price = 120.0 * exp(-otmDist / 220.0);
-      return max(0.15, price);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    IndexData indexData = globalIndices[selectedSymbol]!;
-    List<int> strikes = [];
-    for (int s = indexData.minStrike; s <= indexData.maxStrike; s += indexData.step) {
-      strikes.add(s);
-    }
-
-    return Column(
-      children: [
-        if (!widget.isMarketOpen)
-          Container(
-            width: double.infinity,
-            color: Colors.redAccent.withOpacity(0.15),
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: const Text(
-              "MARKET IS CLOSED (Hours: Mon-Fri, 9:15 AM - 3:30 PM IST)",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
-            ),
-          ),
-        
-        // Index Selector Header with Chart Icon
-        Container(
-          color: const Color(0xFF151D2A),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+      backgroundColor: const Color(0xFFF9FAFC),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DropdownButton<String>(
-                    value: selectedSymbol,
-                    dropdownColor: const Color(0xFF151D2A),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    underline: Container(),
-                    items: globalIndices.keys.map((String symbol) {
-                      return DropdownMenuItem<String>(
-                        value: symbol,
-                        child: Text(symbol),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => selectedSymbol = val);
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.candlestick_chart, color: Colors.greenAccent),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TradingViewChartScreen(
-                            symbol: indexData.symbol,
-                            tvSymbol: indexData.tvSymbol,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  const Text("Laxmi Balance", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 6),
+                  Text("₹${widget.user.balance.toStringAsFixed(2)}", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
                 ],
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: const Color(0xFFF2F4F7), borderRadius: BorderRadius.circular(16)),
+              child: Row(
                 children: [
-                  Text("₹${indexData.spotPrice.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
-                  Text("${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)} (${(indexData.change / indexData.spotPrice * 100).toStringAsFixed(2)}%)", style: TextStyle(fontSize: 11, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
-                ],
-              )
-            ],
-          ),
-        ),
-
-        // Chain Titles
-        Container(
-          color: const Color(0xFF0B0E14),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          child: const Row(
-            children: [
-              Expanded(child: Text("CALLS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.greenAccent, fontSize: 12))),
-              Expanded(child: Text("STRIKE", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12))),
-              Expanded(child: Text("PUTS", textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent, fontSize: 12))),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: Colors.white10),
-
-        // Strike Scroll List
-        Expanded(
-          child: ListView.builder(
-            itemCount: strikes.length,
-            itemBuilder: (context, index) {
-              int strike = strikes[index];
-              double callP = _getCallPrice(indexData.spotPrice, strike);
-              double putP = _getPutPrice(indexData.spotPrice, strike);
-
-              bool isSpotHere = false;
-              if (index < strikes.length - 1) {
-                if (indexData.spotPrice >= strike && indexData.spotPrice < strikes[index + 1]) {
-                  isSpotHere = true;
-                }
-              }
-
-              double callChg = ((strike % 7) - 3.5);
-              double putChg = ((strike % 5) - 2.5);
-
-              return Column(
-                children: [
-                  if (isSpotHere)
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.amber, width: 1),
-                      ),
-                      child: Text(
-                        "${indexData.spotPrice.toStringAsFixed(2)} | ${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.amberAccent),
-                      ),
-                    ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: strike < indexData.spotPrice ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
-                      border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
-                    ),
-                    child: Row(
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // CALL
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _buyOption("${indexData.symbol} $strike CE", callP, indexData.lotSize),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("₹${callP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
-                                Text("${callChg >= 0 ? '+' : ''}${callChg.toStringAsFixed(2)}%", style: TextStyle(color: callChg >= 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 10)),
-                              ],
-                            ),
-                          ),
+                        Row(
+                          children: const [
+                            Text("Auto refill of Laxmi balance ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                          ],
                         ),
-                        // STRIKE
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text("$strike", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                              Container(height: 2, width: 25, color: strike < indexData.spotPrice ? Colors.green : Colors.red)
-                            ],
-                          ),
-                        ),
-                        // PUT
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _buyOption("${indexData.symbol} $strike PE", putP, indexData.lotSize),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text("₹${putP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
-                                Text("${putChg >= 0 ? '+' : ''}${putChg.toStringAsFixed(2)}%", style: TextStyle(color: putChg >= 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 10)),
-                              ],
-                            ),
-                          ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          "Funds will be added automatically from bank account post periodic settlement on 4th September",
+                          style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE8F8F5),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: const Text("Setup", style: TextStyle(color: Color(0xFF00D09C), fontWeight: FontWeight.bold)),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE8F8F5),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("Withdraw", style: TextStyle(color: Color(0xFF00D09C), fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _showAddMoneyModal,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00D09C),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("Add money", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
         ),
-      ],
+      ),
     );
-  }
-}
-
-class PortfolioScreen extends StatelessWidget {
-  final UserAccount user;
-  const PortfolioScreen({super.key, required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text("Positions & Portfolio Screen", style: TextStyle(color: Colors.grey)));
-  }
-}
-
-class WalletScreen extends StatelessWidget {
-  final UserAccount user;
-  const WalletScreen({super.key, required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text("Wallet Screen", style: TextStyle(color: Colors.grey)));
-  }
-}
-
-class AdminPanelScreen extends StatelessWidget {
-  final UserAccount adminUser;
-  const AdminPanelScreen({super.key, required this.adminUser});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text("Admin Panel", style: TextStyle(color: Colors.grey)));
   }
 }
