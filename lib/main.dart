@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const LaxmiTradingApp());
 }
 
@@ -54,14 +57,51 @@ class ActivePosition {
 
   ActivePosition({required this.symbol, required this.buyPrice, required this.quantity, required this.currentPrice});
   double get pnl => (currentPrice - buyPrice) * quantity;
+
+  Map<String, dynamic> toJson() => {
+    'symbol': symbol,
+    'buyPrice': buyPrice,
+    'quantity': quantity,
+    'currentPrice': currentPrice,
+  };
+
+  factory ActivePosition.fromJson(Map<String, dynamic> json) => ActivePosition(
+    symbol: json['symbol'],
+    buyPrice: (json['buyPrice'] as num).toDouble(),
+    quantity: json['quantity'],
+    currentPrice: (json['currentPrice'] as num).toDouble(),
+  );
 }
 
 class CustomerUser {
-  final String id, name, phone;
+  final String id, phone;
+  String name;
   double fundLimit;
   List<ActivePosition> positions;
 
   CustomerUser({required this.id, required this.name, required this.phone, required this.fundLimit, required this.positions});
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'phone': phone,
+    'fundLimit': fundLimit,
+    'positions': positions.map((p) => p.toJson()).toList(),
+  };
+
+  factory CustomerUser.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    var rawPositions = data['positions'] as List<dynamic>? ?? [];
+    List<ActivePosition> posList = rawPositions.map((p) => ActivePosition.fromJson(p)).toList();
+
+    return CustomerUser(
+      id: doc.id,
+      name: data['name'] ?? "User",
+      phone: data['phone'] ?? "",
+      fundLimit: (data['fundLimit'] as num?)?.toDouble() ?? 100000.0,
+      positions: posList,
+    );
+  }
 }
 
 // TOP 50 STOCKS LIST
@@ -79,11 +119,10 @@ List<StockItem> top50Stocks = [
   StockItem(symbol: "ZOMATO", companyName: "Zomato Ltd.", price: 255.40, change: 2.90),
 ];
 
-List<CustomerUser> registeredCustomers = [];
 CustomerUser? activeCustomer;
 
 // ---------------------------------------------------------------------------
-// 1. MOBILE NUMBER LOGIN SCREEN (CUSTOMER)
+// 1. MOBILE NUMBER LOGIN SCREEN (FIREBASE SYNCED)
 // ---------------------------------------------------------------------------
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -96,6 +135,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
   bool _otpSent = false;
+  bool _isLoading = false;
   String _error = "";
 
   void _sendOTP() {
@@ -109,25 +149,40 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     }
   }
 
-  void _verifyOTP() {
+  void _verifyOTP() async {
     if (_otpController.text.trim().length >= 4) {
+      setState(() => _isLoading = true);
       String phone = _phoneController.text.trim();
-      
-      var existingUser = registeredCustomers.firstWhere((u) => u.phone == phone, orElse: () {
-        var newUser = CustomerUser(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: "User ${phone.substring(6)}",
-          phone: phone,
-          fundLimit: 100000.0,
-          positions: [],
-        );
-        registeredCustomers.add(newUser);
-        return newUser;
-      });
 
-      activeCustomer = existingUser;
+      try {
+        final query = await FirebaseFirestore.instance
+            .collection('customers')
+            .where('phone', isEqualTo: phone)
+            .get();
 
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const CustomerDashboard()));
+        if (query.docs.isNotEmpty) {
+          activeCustomer = CustomerUser.fromFirestore(query.docs.first);
+        } else {
+          var newUserRef = FirebaseFirestore.instance.collection('customers').doc();
+          var newUser = CustomerUser(
+            id: newUserRef.id,
+            name: "User ${phone.substring(6)}",
+            phone: phone,
+            fundLimit: 100000.0,
+            positions: [],
+          );
+          await newUserRef.set(newUser.toJson());
+          activeCustomer = newUser;
+        }
+
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const CustomerDashboard()));
+        }
+      } catch (e) {
+        setState(() => _error = "डेटाबेस एरर: $e");
+      } finally {
+        setState(() => _isLoading = false);
+      }
     } else {
       setState(() => _error = "गलत OTP! कृपया सही OTP दर्ज करें।");
     }
@@ -161,7 +216,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               ),
               const SizedBox(height: 20),
               const Text("Laxmi Trading", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-              const Text("अपने मोबाइल नंबर से लॉगिन करें", style: TextStyle(color: Colors.grey, fontSize: 14)),
+              const Text("क्लाउड सिंक के साथ सुरक्षित लॉगिन", style: TextStyle(color: Colors.grey, fontSize: 14)),
               const SizedBox(height: 30),
 
               if (!_otpSent) ...[
@@ -195,11 +250,11 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   style: const TextStyle(color: Colors.white, fontSize: 20, letterSpacing: 4),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: "Enter OTP (कोई भी 4-6 अंक डालें)",
-                    labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF00D09C))),
+                    labelStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF00D09C))),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -208,8 +263,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D09C)),
-                    onPressed: _verifyOTP,
-                    child: const Text("VERIFY & LOGIN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    onPressed: _isLoading ? null : _verifyOTP,
+                    child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white) 
+                      : const Text("VERIFY & LOGIN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
                 TextButton(
@@ -232,7 +289,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// 2. ADMIN LOGIN (AJAY)
+// 2. ADMIN LOGIN & PANEL
 // ---------------------------------------------------------------------------
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -287,60 +344,73 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   }
 }
 
-class AdminDashboardScreen extends StatefulWidget {
+class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
-  @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
-}
-
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Ajay Admin Panel")),
-      body: registeredCustomers.isEmpty
-          ? const Center(child: Text("अभी कोई कस्टमर पंजीकृत नहीं है।", style: TextStyle(color: Colors.grey)))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: registeredCustomers.length,
-              itemBuilder: (context, index) {
-                var user = registeredCustomers[index];
-                return Card(
-                  color: const Color(0xFF1E222D),
-                  child: ListTile(
-                    title: Text("${user.name} (+91 ${user.phone})", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    subtitle: Text("Limit: ₹${user.fundLimit.toStringAsFixed(0)}", style: const TextStyle(color: Color(0xFF00D09C))),
-                    trailing: const Icon(Icons.edit, color: Colors.white),
-                    onTap: () {
-                      TextEditingController c = TextEditingController(text: user.fundLimit.toStringAsFixed(0));
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: Text("${user.phone} की लिमिट बदलें"),
-                          content: TextField(controller: c, keyboardType: TextInputType.number),
-                          actions: [
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() => user.fundLimit = double.parse(c.text));
-                                Navigator.pop(ctx);
-                              },
-                              child: const Text("Save"),
-                            )
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('customers').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          var docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
+            return const Center(child: Text("अभी कोई कस्टमर पंजीकृत नहीं है।", style: TextStyle(color: Colors.grey)));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              var userDoc = docs[index];
+              var data = userDoc.data() as Map<String, dynamic>;
+              String phone = data['phone'] ?? "";
+              String name = data['name'] ?? "User";
+              double limit = (data['fundLimit'] as num?)?.toDouble() ?? 0.0;
+
+              return Card(
+                color: const Color(0xFF1E222D),
+                child: ListTile(
+                  title: Text("$name (+91 $phone)", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                  subtitle: Text("Limit: ₹${limit.toStringAsFixed(0)}", style: const TextStyle(color: Color(0xFF00D09C))),
+                  trailing: const Icon(Icons.edit, color: Colors.white),
+                  onTap: () {
+                    TextEditingController c = TextEditingController(text: limit.toStringAsFixed(0));
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text("+91 $phone की लिमिट बदलें"),
+                        content: TextField(controller: c, keyboardType: TextInputType.number),
+                        actions: [
+                          ElevatedButton(
+                            onPressed: () async {
+                              double newLimit = double.parse(c.text);
+                              await FirebaseFirestore.instance.collection('customers').doc(userDoc.id).update({
+                                'fundLimit': newLimit,
+                              });
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text("Save"),
+                          )
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// 3. CUSTOMER DASHBOARD
+// 3. CUSTOMER DASHBOARD & LIVE SYNC
 // ---------------------------------------------------------------------------
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
@@ -375,119 +445,148 @@ class _CustomerDashboardState extends State<CustomerDashboard> with SingleTicker
     super.dispose();
   }
 
+  Future<void> _syncToFirebase() async {
+    await FirebaseFirestore.instance.collection('customers').doc(activeCustomer!.id).update({
+      'fundLimit': activeCustomer!.fundLimit,
+      'positions': activeCustomer!.positions.map((p) => p.toJson()).toList(),
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    var user = activeCustomer!;
-    double totalPnL = user.positions.fold(0, (s, i) => s + i.pnl);
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('customers').doc(activeCustomer!.id).snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data!.exists) {
+          activeCustomer = CustomerUser.fromFirestore(snapshot.data!);
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Laxmi Trading (+91 ${user.phone})", style: const TextStyle(fontSize: 15)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, size: 20),
-            onPressed: () {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const PhoneLoginScreen()));
-            },
-          )
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFF00D09C),
-          labelColor: const Color(0xFF00D09C),
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: "INDICES"),
-            Tab(text: "STOCKS"),
-            Tab(text: "POSITIONS"),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // INDICES
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildBalanceCard(user),
-              const SizedBox(height: 16),
-              _buildIndexItem("NIFTY 50", "24,350.20", 22100, 26400, 50, 25),
-              _buildIndexItem("BANK NIFTY", "52,110.50", 43500, 69000, 100, 15),
-              _buildIndexItem("SENSEX", "79,820.40", 69100, 86000, 100, 10),
+        var user = activeCustomer!;
+        double totalPnL = user.positions.fold(0, (s, i) => s + i.pnl);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text("Laxmi Trading (+91 ${user.phone})", style: const TextStyle(fontSize: 15)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout, size: 20),
+                onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const PhoneLoginScreen())),
+              )
             ],
-          ),
-          // STOCKS
-          ListView.builder(
-            itemCount: top50Stocks.length,
-            itemBuilder: (c, i) {
-              var stock = top50Stocks[i];
-              return Card(
-                color: const Color(0xFF1E222D),
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: ListTile(
-                  title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                  subtitle: Text(stock.companyName, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text("₹${stock.price}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text("${stock.change}%", style: TextStyle(color: stock.change >= 0 ? Colors.green : Colors.red, fontSize: 12)),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.show_chart, color: Color(0xFF00D09C)),
-                    ],
-                  ),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: stock.symbol, currentPrice: stock.price)));
-                  },
-                ),
-              );
-            },
-          ),
-          // POSITIONS
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFF1E222D), borderRadius: BorderRadius.circular(12)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("Live P&L", style: TextStyle(color: Colors.grey)),
-                      Text("₹${totalPnL.toStringAsFixed(2)}", style: TextStyle(color: totalPnL >= 0 ? Colors.green : Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: user.positions.length,
-                    itemBuilder: (c, i) {
-                      var p = user.positions[i];
-                      return Card(
-                        color: const Color(0xFF1E222D),
-                        child: ListTile(
-                          title: Text(p.symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                          subtitle: Text("Qty: ${p.quantity} | Buy: ₹${p.buyPrice.toStringAsFixed(2)}"),
-                          trailing: Text("₹${p.pnl.toStringAsFixed(2)}", style: TextStyle(color: p.pnl >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
-                      );
-                    },
-                  ),
-                )
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF00D09C),
+              labelColor: const Color(0xFF00D09C),
+              unselectedLabelColor: Colors.grey,
+              tabs: const [
+                Tab(text: "INDICES"),
+                Tab(text: "STOCKS"),
+                Tab(text: "POSITIONS"),
               ],
             ),
-          )
-        ],
-      ),
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              // INDICES
+              ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildBalanceCard(user),
+                  const SizedBox(height: 16),
+                  _buildIndexItem("NIFTY 50", "24,350.20", 22100, 26400, 50, 25),
+                  _buildIndexItem("BANK NIFTY", "52,110.50", 43500, 69000, 100, 15),
+                  _buildIndexItem("SENSEX", "79,820.40", 69100, 86000, 100, 10),
+                ],
+              ),
+              // STOCKS
+              ListView.builder(
+                itemCount: top50Stocks.length,
+                itemBuilder: (c, i) {
+                  var stock = top50Stocks[i];
+                  return Card(
+                    color: const Color(0xFF1E222D),
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    child: ListTile(
+                      title: Text(stock.symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                      subtitle: Text(stock.companyName, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text("₹${stock.price}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text("${stock.change}%", style: TextStyle(color: stock.change >= 0 ? Colors.green : Colors.red, fontSize: 12)),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.show_chart, color: Color(0xFF00D09C)),
+                        ],
+                      ),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: stock.symbol, currentPrice: stock.price, onOrderPlaced: _syncToFirebase))),
+                    ),
+                  );
+                },
+              ),
+              // POSITIONS
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: const Color(0xFF1E222D), borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Live P&L", style: TextStyle(color: Colors.grey)),
+                          Text("₹${totalPnL.toStringAsFixed(2)}", style: TextStyle(color: totalPnL >= 0 ? Colors.green : Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: user.positions.length,
+                        itemBuilder: (c, i) {
+                          var p = user.positions[i];
+                          return Card(
+                            color: const Color(0xFF1E222D),
+                            child: ListTile(
+                              title: Text(p.symbol, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                              subtitle: Text("Qty: ${p.quantity} | Buy: ₹${p.buyPrice.toStringAsFixed(2)}"),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text("₹${p.pnl.toStringAsFixed(2)}", style: TextStyle(color: p.pnl >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, minimumSize: const Size(60, 30)),
+                                    onPressed: () async {
+                                      setState(() {
+                                        user.fundLimit += p.pnl;
+                                        user.positions.removeAt(i);
+                                      });
+                                      await _syncToFirebase();
+                                    },
+                                    child: const Text("EXIT", style: TextStyle(fontSize: 11, color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -523,11 +622,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> with SingleTicker
           children: [
             IconButton(
               icon: const Icon(Icons.candlestick_chart, color: Color(0xFF00D09C)),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => ChartScreen(symbol: name, currentPrice: double.parse(price.replaceAll(',', ''))))),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => ChartScreen(symbol: name, currentPrice: double.parse(price.replaceAll(',', '')), onOrderPlaced: _syncToFirebase))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D09C)),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => OptionChainScreen(indexName: name, startStrike: start, endStrike: end, step: step, lotSize: lot, spotPrice: double.parse(price.replaceAll(',', ''))))),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => OptionChainScreen(indexName: name, startStrike: start, endStrike: end, step: step, lotSize: lot, spotPrice: double.parse(price.replaceAll(',', '')), onOrderPlaced: _syncToFirebase))),
               child: const Text("OPTION CHAIN", style: TextStyle(fontSize: 10, color: Colors.white)),
             ),
           ],
@@ -538,14 +637,15 @@ class _CustomerDashboardState extends State<CustomerDashboard> with SingleTicker
 }
 
 // ---------------------------------------------------------------------------
-// 4. OPTION CHAIN & CANDLESTICK CHART
+// 4. OPTION CHAIN & CHART
 // ---------------------------------------------------------------------------
 class OptionChainScreen extends StatelessWidget {
   final String indexName;
   final int startStrike, endStrike, step, lotSize;
   final double spotPrice;
+  final Future<void> Function() onOrderPlaced;
 
-  const OptionChainScreen({super.key, required this.indexName, required this.startStrike, required this.endStrike, required this.step, required this.lotSize, required this.spotPrice});
+  const OptionChainScreen({super.key, required this.indexName, required this.startStrike, required this.endStrike, required this.step, required this.lotSize, required this.spotPrice, required this.onOrderPlaced});
 
   @override
   Widget build(BuildContext context) {
@@ -569,7 +669,7 @@ class OptionChainScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: "$indexName $strike CE", currentPrice: callP))),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: "$indexName $strike CE", currentPrice: callP, onOrderPlaced: onOrderPlaced))),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       color: Colors.green.withOpacity(0.1),
@@ -580,7 +680,7 @@ class OptionChainScreen extends StatelessWidget {
                 Container(padding: const EdgeInsets.all(12), child: Text("$strike", style: const TextStyle(fontWeight: FontWeight.bold))),
                 Expanded(
                   child: InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: "$indexName $strike PE", currentPrice: putP))),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => ChartScreen(symbol: "$indexName $strike PE", currentPrice: putP, onOrderPlaced: onOrderPlaced))),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       color: Colors.red.withOpacity(0.1),
@@ -600,8 +700,9 @@ class OptionChainScreen extends StatelessWidget {
 class ChartScreen extends StatefulWidget {
   final String symbol;
   final double currentPrice;
+  final Future<void> Function() onOrderPlaced;
 
-  const ChartScreen({super.key, required this.symbol, required this.currentPrice});
+  const ChartScreen({super.key, required this.symbol, required this.currentPrice, required this.onOrderPlaced});
 
   @override
   State<ChartScreen> createState() => _ChartScreenState();
@@ -753,12 +854,13 @@ class _ChartScreenState extends State<ChartScreen> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D09C)),
-            onPressed: () {
+            onPressed: () async {
               int qty = int.tryParse(qtyController.text) ?? 50;
               activeCustomer!.positions.add(ActivePosition(symbol: widget.symbol, buyPrice: price, quantity: qty, currentPrice: price));
+              await widget.onOrderPlaced();
               Navigator.pop(c);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Order Executed Successfully!")));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Order Executed & Synced!")));
             },
             child: const Text("CONFIRM ORDER", style: TextStyle(color: Colors.white)),
           )
