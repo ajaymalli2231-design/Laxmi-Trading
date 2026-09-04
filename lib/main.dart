@@ -187,7 +187,7 @@ class _MainDashboardState extends State<MainDashboard> {
         _isMarketOpen = marketOpenNow;
         if (_isMarketOpen) {
           globalIndices.forEach((key, indexData) {
-            double tick = (_rnd.nextDouble() * 4 - 2.0);
+            double tick = (_rnd.nextDouble() * 3.0 - 1.5);
             indexData.spotPrice += tick;
             indexData.change += tick;
           });
@@ -268,7 +268,7 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// OPTION CHAIN SCREEN
+// REALISTIC OPTION CHAIN SCREEN
 class OptionChainScreen extends StatefulWidget {
   final UserAccount user;
   final bool isMarketOpen;
@@ -306,22 +306,30 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('BUY Order Executed for $optionSymbol @ ₹${price.toStringAsFixed(2)}!')));
   }
 
-  // Realistic Options Price Modeling (Black-Scholes Approximation)
-  double _calculateCallPrice(double spot, int strike) {
-    double diff = spot - strike;
-    if (diff > 0) {
-      return diff + (spot * 0.005);
+  // Realistic Market Pricing Model using Decay Factor
+  double _getCallPrice(double spot, int strike) {
+    double distance = (spot - strike);
+    if (distance > 0) {
+      // ITM
+      return (distance * 0.85) + 40.0 + (spot * 0.001);
     } else {
-      return max(2.50, (spot * 0.005) * exp(diff / (spot * 0.02)));
+      // OTM
+      double otmDist = (strike - spot);
+      double price = 120.0 * exp(-otmDist / 220.0);
+      return max(0.15, price);
     }
   }
 
-  double _calculatePutPrice(double spot, int strike) {
-    double diff = strike - spot;
-    if (diff > 0) {
-      return diff + (spot * 0.005);
+  double _getPutPrice(double spot, int strike) {
+    double distance = (strike - spot);
+    if (distance > 0) {
+      // ITM
+      return (distance * 0.85) + 40.0 + (spot * 0.001);
     } else {
-      return max(2.50, (spot * 0.005) * exp(-diff / (spot * 0.02)));
+      // OTM
+      double otmDist = (spot - strike);
+      double price = 120.0 * exp(-otmDist / 220.0);
+      return max(0.15, price);
     }
   }
 
@@ -373,14 +381,14 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text("₹${indexData.spotPrice.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
-                  Text("${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}", style: TextStyle(fontSize: 11, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
+                  Text("${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)} (${(indexData.change / indexData.spotPrice * 100).toStringAsFixed(2)}%)", style: TextStyle(fontSize: 11, color: indexData.change >= 0 ? Colors.greenAccent : Colors.redAccent)),
                 ],
               )
             ],
           ),
         ),
 
-        // Chain Headers
+        // Chain Column Titles
         Container(
           color: const Color(0xFF0B0E14),
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -400,8 +408,8 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
             itemCount: strikes.length,
             itemBuilder: (context, index) {
               int strike = strikes[index];
-              double callP = _calculateCallPrice(indexData.spotPrice, strike);
-              double putP = _calculatePutPrice(indexData.spotPrice, strike);
+              double callP = _getCallPrice(indexData.spotPrice, strike);
+              double putP = _getPutPrice(indexData.spotPrice, strike);
 
               bool isSpotHere = false;
               if (index < strikes.length - 1) {
@@ -410,31 +418,35 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
                 }
               }
 
+              // Fake realistic % change for UI look
+              double callChg = ((strike % 7) - 3.5);
+              double putChg = ((strike % 5) - 2.5);
+
               return Column(
                 children: [
                   if (isSpotHere)
                     Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
                       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
                       decoration: BoxDecoration(
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24),
+                        border: Border.all(color: Colors.amber, width: 1),
                       ),
                       child: Text(
-                        "SPOT: ${indexData.spotPrice.toStringAsFixed(2)} | ${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}",
+                        "${indexData.spotPrice.toStringAsFixed(2)} | ${indexData.change >= 0 ? '+' : ''}${indexData.change.toStringAsFixed(2)}",
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.amberAccent),
                       ),
                     ),
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                     decoration: BoxDecoration(
-                      color: strike < indexData.spotPrice ? Colors.green.withOpacity(0.04) : Colors.red.withOpacity(0.04),
+                      color: strike < indexData.spotPrice ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
                       border: const Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
                     ),
                     child: Row(
                       children: [
-                        // CALL
+                        // CALL SIDE
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _buyOption("${indexData.symbol} $strike CE", callP, indexData.lotSize),
@@ -442,12 +454,12 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text("₹${callP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
-                                const Text("CALL", style: TextStyle(color: Colors.grey, fontSize: 9)),
+                                Text("${callChg >= 0 ? '+' : ''}${callChg.toStringAsFixed(2)}%", style: TextStyle(color: callChg >= 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 10)),
                               ],
                             ),
                           ),
                         ),
-                        // STRIKE
+                        // STRIKE CENTER
                         Expanded(
                           child: Column(
                             children: [
@@ -460,7 +472,7 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
                             ],
                           ),
                         ),
-                        // PUT
+                        // PUT SIDE
                         Expanded(
                           child: GestureDetector(
                             onTap: () => _buyOption("${indexData.symbol} $strike PE", putP, indexData.lotSize),
@@ -468,7 +480,7 @@ class _OptionChainScreenState extends State<OptionChainScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text("₹${putP.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
-                                const Text("PUT", style: TextStyle(color: Colors.grey, fontSize: 9)),
+                                Text("${putChg >= 0 ? '+' : ''}${putChg.toStringAsFixed(2)}%", style: TextStyle(color: putChg >= 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 10)),
                               ],
                             ),
                           ),
@@ -507,7 +519,7 @@ class _MarketWatchScreenState extends State<MarketWatchScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(12.0),
+   padding: const EdgeInsets.all(12.0),
           child: TextField(
             onChanged: (val) => setState(() => _searchQuery = val),
             decoration: InputDecoration(
