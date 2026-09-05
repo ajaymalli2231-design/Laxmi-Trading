@@ -7,13 +7,13 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Prepare clean android platform
+      - name: Recreate clean android folder
         script: |
           if [ -f "android/app/google-services.json" ]; then
             cp android/app/google-services.json ./google-services.json
           fi
-          # पूरे android फोल्डर को हटाने के बजाय सीधे ग्रेडल फाइलों को रीसेट करें
-          rm -rf android/build android/app/build
+          # पुराने एंड्रॉइड फोल्डर को पूरी तरह साफ़ कर रहे हैं ताकि कोई पुराना ग्रेडल स्ट्रक्चर न बचे
+          rm -rf android
           flutter create . --org com.laxmitrading.app --platforms=android
       - name: Restore Google Services file
         script: |
