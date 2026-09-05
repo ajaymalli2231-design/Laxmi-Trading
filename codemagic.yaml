@@ -7,9 +7,9 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Generate Android files
+      - name: Fix and Prepare Project
         script: |
-          flutter create . --platforms=android
+          flutter create . --org com.laxmitrading.app --platforms=android
       - name: Get Flutter packages
         script: |
           flutter pub get
