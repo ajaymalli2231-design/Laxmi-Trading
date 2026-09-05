@@ -20,6 +20,7 @@ class LaxmiTradingApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF121212),
+        primarySwatch: Colors.blue,
       ),
       home: const LaxmiTradingHomeScreen(),
     );
@@ -31,11 +32,34 @@ class LaxmiTradingHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'Laxmi Trading Home Screen',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Laxmi Trading'),
+        backgroundColor: const Color(0xFF1F1F1F),
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Welcome Back, Trader!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Firebase is successfully connected and running.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.greenAccent,
+              ),
+            ),
+          ],
         ),
       ),
     );
