@@ -9,8 +9,19 @@ workflows:
     scripts:
       - name: Clean old Android files and recreate
         script: |
+          # google-services.json को सुरक्षित बचाने के लिए पहले उसे बाहर कॉपी कर लेते हैं
+          if [ -f "android/app/google-services.json" ]; then
+            cp android/app/google-services.json ./google-services.json
+          fi
           rm -rf android
           flutter create . --org com.laxmitrading.app --platforms=android
+      - name: Restore Google Services file
+        script: |
+          # जनरेट होने के बाद फाइल को वापस सही फोल्डर में डाल देंगे
+          if [ -f "google-services.json" ]; then
+            mkdir -p android/app
+            cp google-services.json android/app/
+          fi
       - name: Get Flutter packages
         script: |
           flutter pub get
