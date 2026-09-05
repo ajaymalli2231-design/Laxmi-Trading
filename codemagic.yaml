@@ -7,8 +7,9 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Fix and Prepare Project
+      - name: Clean old Android files and recreate
         script: |
+          rm -rf android
           flutter create . --org com.laxmitrading.app --platforms=android
       - name: Get Flutter packages
         script: |
