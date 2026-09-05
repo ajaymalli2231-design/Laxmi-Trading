@@ -7,11 +7,23 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Wipe and Recreate Android Native Project
+      - name: Setup Android and Google Services
         script: |
-          # पुरानी फाइलों का कचरा साफ कर रहे हैं
+          if [ -f "android/app/google-services.json" ]; then
+            cp android/app/google-services.json ./google-services.json
+          fi
+          
+          # पुराना एंड्रॉइड फोल्डर हटाकर नए फ्लटर वर्जन के हिसाब से फ्रेश सेटअप बनाना
           rm -rf android
           flutter create . --org com.laxmitrading.app --platforms=android
+          
+          if [ -f "google-services.json" ]; then
+            mkdir -p android/app
+            cp google-services.json android/app/
+          fi
+          
+          # Firebase के लिए सही ग्रेडल प्लगइन जोड़ना
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
       - name: Get Flutter packages
         script: |
           flutter pub get
