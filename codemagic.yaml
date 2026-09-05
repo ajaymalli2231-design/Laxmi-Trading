@@ -7,13 +7,12 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Setup Android and Google Services
+      - name: Setup Android and Fix Gradle Version
         script: |
           if [ -f "android/app/google-services.json" ]; then
             cp android/app/google-services.json ./google-services.json
           fi
           
-          # पुराना एंड्रॉइड फोल्डर हटाकर नए फ्लटर वर्जन के हिसाब से फ्रेश सेटअप बनाना
           rm -rf android
           flutter create . --org com.laxmitrading.app --platforms=android
           
@@ -22,7 +21,14 @@ workflows:
             cp google-services.json android/app/
           fi
           
-          # Firebase के लिए सही ग्रेडल प्लगइन जोड़ना
+          # ग्रेडल वर्जन को सीधे अपडेट करना ताकि एरर न आए
+          mkdir -p android/gradle/wrapper
+          echo "distributionBase=GRADLE_USER_HOME" > android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "zipStoreBase=GRADLE_USER_HOME" >> android/gradle/wrapper/gradle-wrapper.properties
+          echo "zipStorePath=wrapper/dists" >> android/gradle/wrapper/gradle-wrapper.properties
+
           echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
       - name: Get Flutter packages
         script: |
