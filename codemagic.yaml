@@ -7,7 +7,7 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Generate Android and Build Direct via Gradle
+      - name: Generate Fresh Android Setup
         script: |
           flutter create . --org com.laxmitrading.app --platforms=android
           
@@ -20,11 +20,12 @@ workflows:
           fi
           
           echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
-          
-          # फ्लटर चेक को छोड़कर सीधे एंड्रॉइड ग्रेडल से APK बना रहे हैं
-          cd android
-          ./gradlew assembleRelease
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Build Android APK
+        script: |
+          flutter build apk --release --no-tree-shake-icons
     artifacts:
-      - android/app/build/outputs/apk/release/app-release.apk
       - build/app/outputs/flutter-apk/*.apk
       
