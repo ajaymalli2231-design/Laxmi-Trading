@@ -21,7 +21,6 @@ workflows:
           
           echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
           
-          # फ्लटर कमांड की बजाय सीधे एंड्रॉइड ग्रेडल से APK निकाल रहे हैं
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
