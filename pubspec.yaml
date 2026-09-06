@@ -1,7 +1,6 @@
 name: laxmi_trading
 description: "Laxmi Trading Platform"
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -11,11 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  http: ^1.2.0
-  webview_flutter: ^4.7.0
-  firebase_core: ^3.0.0
-  cloud_firestore: ^5.0.0
-  
+  firebase_core: ^2.24.2
+  cloud_firestore: ^4.14.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
