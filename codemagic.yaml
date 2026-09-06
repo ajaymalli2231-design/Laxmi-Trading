@@ -7,10 +7,13 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Get Flutter packages
+      - name: 1. Generate Fresh Android Platform
+        script: |
+          flutter create . --org com.laxmitrading.app --platforms=android
+      - name: 2. Get Flutter packages
         script: |
           flutter pub get
-      - name: Build Android APK
+      - name: 3. Build Android APK
         script: |
           flutter build apk --release --no-tree-shake-icons
     artifacts:
