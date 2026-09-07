@@ -31,32 +31,33 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  String stockPrice = "Loading live price...";
+  String stockPrice = "Connecting...";
 
   @override
   void initState() {
     super.initState();
-    fetchStockPrice(); // ऐप खुलते ही डेटा मंगवाएगा
+    fetchStockPrice();
   }
 
-  // यहाँ हम लाइव मार्केट API से डेटा फेच करते हैं
   Future<void> fetchStockPrice() async {
     try {
-      // उदाहरण के लिए फ्री फाइनेंशियल API का उपयोग (आप अपनी पसंद की API लगा सकते हैं)
-      final response = await http.get(Uri.parse('https://api.coindesk.com/v1/bpi/currentprice/BTC.json'));
+      final response = await http.get(
+        Uri.parse('https://jsonplaceholder.typicode.com/todos/1'),
+      ).timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          stockPrice = "Live Price: \$${data['bpi']['USD']['rate']}";
+          stockPrice = "Success: ${data['title']}";
         });
       } else {
         setState(() {
-          stockPrice = "Market Closed / Error";
+          stockPrice = "Server Error: ${response.statusCode}";
         });
       }
     } catch (e) {
       setState(() {
-        stockPrice = "Check Internet Connection";
+        stockPrice = "Error: $e";
       });
     }
   }
@@ -68,29 +69,33 @@ class _StockScreenState extends State<StockScreen> {
         title: const Text('Laxmi Trading Live Market'),
         backgroundColor: const Color(0xFF1E293B),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Reliance / Stock Status',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              stockPrice,
-              style: const TextStyle(
-                fontSize: 22,
-                color: Colors.greenAccent,
-                fontWeight: FontWeight.bold,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Connection Status',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: fetchStockPrice,
-              child: const Text('Refresh Price'),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                stockPrice,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.greenAccent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: fetchStockPrice,
+                child: const Text('Refresh Price'),
+              ),
+            ],
+          ),
         ),
       ),
     );
