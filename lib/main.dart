@@ -31,7 +31,7 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  String stockPrice = "Fetching live market price...";
+  String stockPrice = "Testing connection...";
 
   @override
   void initState() {
@@ -41,23 +41,26 @@ class _StockScreenState extends State<StockScreen> {
 
   Future<void> fetchStockPrice() async {
     try {
+      // एक सुरक्षित और हमेशा काम करने वाली पब्लिक API से टेस्ट कर रहे हैं
       final response = await http.get(
-        Uri.parse('https://api.coindesk.com/v1/bpi/currentprice/BTC.json'),
+        Uri.parse('https://api.coincap.io/v2/assets/bitcoin'),
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final price = data['data']['priceUsd'];
         setState(() {
-          stockPrice = "Live Price: \$${data['bpi']['USD']['rate']}";
+          stockPrice = "BTC Live: \$$price";
         });
       } else {
         setState(() {
-          stockPrice = "Market Closed / Error: ${response.statusCode}";
+          stockPrice = "Server Error: ${response.statusCode}";
         });
       }
     } catch (e) {
+      // अब एरर छुपेगी नहीं, बल्कि सीधे स्क्रीन पर दिखेगी
       setState(() {
-        stockPrice = "Check Internet Connection";
+        stockPrice = "Exact Error: $e";
       });
     }
   }
@@ -84,7 +87,7 @@ class _StockScreenState extends State<StockScreen> {
                 stockPrice,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.bold,
                 ),
