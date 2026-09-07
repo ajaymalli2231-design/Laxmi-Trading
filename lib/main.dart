@@ -31,7 +31,7 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  String stockPrice = "Testing connection...";
+  String stockPrice = "Connecting to Live Market...";
 
   @override
   void initState() {
@@ -41,7 +41,6 @@ class _StockScreenState extends State<StockScreen> {
 
   Future<void> fetchStockPrice() async {
     try {
-      // एक सुरक्षित और हमेशा काम करने वाली पब्लिक API से टेस्ट कर रहे हैं
       final response = await http.get(
         Uri.parse('https://api.coincap.io/v2/assets/bitcoin'),
       ).timeout(const Duration(seconds: 10));
@@ -49,18 +48,19 @@ class _StockScreenState extends State<StockScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final price = data['data']['priceUsd'];
+        // कीमत को सुंदर फॉर्मेट में दिखाना
+        final doubleParsed = double.parse(price).toStringAsFixed(2);
         setState(() {
-          stockPrice = "BTC Live: \$$price";
+          stockPrice = "BTC Live: \$$doubleParsed";
         });
       } else {
         setState(() {
-          stockPrice = "Server Error: ${response.statusCode}";
+          stockPrice = "Market Server Busy (${response.statusCode})";
         });
       }
     } catch (e) {
-      // अब एरर छुपेगी नहीं, बल्कि सीधे स्क्रीन पर दिखेगी
       setState(() {
-        stockPrice = "Exact Error: $e";
+        stockPrice = "Connection Error. Check Wi-Fi.";
       });
     }
   }
@@ -79,27 +79,28 @@ class _StockScreenState extends State<StockScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Live Feed Status',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+                'NSE / Crypto Live Feed',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               Text(
                 stockPrice,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 24,
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 30),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3B82F6),
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
                 onPressed: fetchStockPrice,
-                child: const Text('Refresh Price'),
+                child: const Text('Refresh Price', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),
