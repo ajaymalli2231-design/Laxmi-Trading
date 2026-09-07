@@ -10,6 +10,12 @@ workflows:
       - name: 1. Generate Fresh Android Platform
         script: |
           flutter create . --org com.laxmitrading.app --platforms=android
+          
+          # एंड्रॉइड मैनिफेस्ट में इंटरनेट की पक्की परमिशन जोड़ना
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            sed -i '' 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n<application/g' "$MANIFEST_PATH"
+          fi
       - name: 2. Get Flutter packages
         script: |
           flutter pub get
