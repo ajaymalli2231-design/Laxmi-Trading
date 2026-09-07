@@ -7,27 +7,23 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: 1. Generate Android & Add Internet Permission
+      - name: 1. Generate Android & Fix Internet Permission
         script: |
           flutter create . --org com.laxmitrading.app --platforms=android
           
-          # Python script जो 100% गारंटी के साथ AndroidManifest में इंटरनेट परमिशन जोड़ देगा
+          # पक्की पाइथन स्क्रिप्ट जो मैनिफेस्ट टैग के ठीक अंदर इंटरनेट परमिशन जोड़ेगी
           python3 -c '
           path = "android/app/src/main/AndroidManifest.xml"
           with open(path, "r") as f:
-              lines = f.readlines()
+              content = f.read()
           
-          new_lines = []
-          added = False
-          for line in lines:
-              if "<application" in line and not added:
-                  new_lines.append("    <uses-permission android:name=\"android.permission.INTERNET\"/>\n")
-                  added = True
-              new_lines.append(line)
-              
-          with open(path, "w") as f:
-              f.writelines(new_lines)
-          print("Internet permission injected successfully!")
+          if "android.permission.INTERNET" not in content:
+              idx = content.find(">")
+              if idx != -1:
+                  content = content[:idx+1] + "\n    <uses-permission android:name=\"android.permission.INTERNET\"/>" + content[idx+1:]
+                  with open(path, "w") as f:
+                      f.write(content)
+                  print("Internet permission injected successfully at correct place!")
           '
       - name: 2. Get Flutter packages
         script: |
