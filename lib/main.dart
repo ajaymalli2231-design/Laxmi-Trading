@@ -31,7 +31,7 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  String stockPrice = "Connecting...";
+  String stockPrice = "Fetching live market price...";
 
   @override
   void initState() {
@@ -42,22 +42,22 @@ class _StockScreenState extends State<StockScreen> {
   Future<void> fetchStockPrice() async {
     try {
       final response = await http.get(
-        Uri.parse('https://jsonplaceholder.typicode.com/todos/1'),
+        Uri.parse('https://api.coindesk.com/v1/bpi/currentprice/BTC.json'),
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          stockPrice = "Success: ${data['title']}";
+          stockPrice = "Live Price: \$${data['bpi']['USD']['rate']}";
         });
       } else {
         setState(() {
-          stockPrice = "Server Error: ${response.statusCode}";
+          stockPrice = "Market Closed / Error: ${response.statusCode}";
         });
       }
     } catch (e) {
       setState(() {
-        stockPrice = "Error: $e";
+        stockPrice = "Check Internet Connection";
       });
     }
   }
@@ -76,7 +76,7 @@ class _StockScreenState extends State<StockScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Connection Status',
+                'Live Feed Status',
                 style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
               const SizedBox(height: 10),
@@ -84,13 +84,17 @@ class _StockScreenState extends State<StockScreen> {
                 stockPrice,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   color: Colors.greenAccent,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: fetchStockPrice,
                 child: const Text('Refresh Price'),
               ),
