@@ -7,15 +7,20 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: 1. Generate Fresh Android Platform
+      - name: 1. Generate Android & Add Internet Permission
         script: |
           flutter create . --org com.laxmitrading.app --platforms=android
           
-          # एंड्रॉइड मैनिफेस्ट में इंटरनेट की पक्की परमिशन जोड़ना
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            sed -i '' 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n<application/g' "$MANIFEST_PATH"
-          fi
+          # Python के जरिए एंड्रॉइड मैनिफेस्ट में पक्की इंटरनेट परमिशन जोड़ रहे हैं
+          python3 -c '
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path, "r") as f:
+              content = f.read()
+          if "android.permission.INTERNET" not in content:
+              content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
+              with open(path, "w") as f:
+                  f.write(content)
+          '
       - name: 2. Get Flutter packages
         script: |
           flutter pub get
