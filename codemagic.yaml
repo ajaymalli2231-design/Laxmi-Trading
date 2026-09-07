@@ -7,27 +7,27 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: 1. Safe Android Setup & Internet Permission
+      - name: 1. Generate Android & Inject Permission
         script: |
-          # अगर एंड्रॉइड फोल्डर नहीं है, तभी बनाएगा (बार-बार डिलीट नहीं होगा)
-          if [ ! -d "android" ]; then
-            flutter create . --org com.laxmitrading.app --platforms=android
-          fi
+          flutter create . --org com.laxmitrading.app --platforms=android
           
-          # मैनिफेस्ट में पक्की इंटरनेट परमिशन जोड़ना
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            if ! grep -q "android.permission.INTERNET" "$MANIFEST"; then
-              python3 -c '
-              path = "android/app/src/main/AndroidManifest.xml"
+          # यह पाइथन कोड एंड्रॉइड मैनिफेस्ट में 100% गारंटी के साथ इंटरनेट परमिशन जोड़ देगा
+          python3 -c '
+          import os
+          path = "android/app/src/main/AndroidManifest.xml"
+          if os.path.exists(path):
               with open(path, "r") as f:
                   content = f.read()
-              content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
-              with open(path, "w") as f:
-                  f.write(content)
-              '
-            fi
-          fi
+              if "android.permission.INTERNET" not in content:
+                  content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
+                  with open(path, "w") as f:
+                      f.write(content)
+                  print("SUCCESS: Internet permission injected!")
+              else:
+                  print("ALREADY PRESENT: Internet permission exists.")
+          else:
+              print("ERROR: Manifest file missing!")
+          '
       - name: 2. Get Flutter packages
         script: |
           flutter pub get
