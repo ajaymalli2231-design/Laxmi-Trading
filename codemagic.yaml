@@ -7,27 +7,27 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: 1. Generate Android & Perfect Permission Injection
+      - name: 1. Safe Android Setup & Internet Permission
         script: |
-          flutter create . --org com.laxmitrading.app --platforms=android
+          # अगर एंड्रॉइड फोल्डर नहीं है, तभी बनाएगा (बार-बार डिलीट नहीं होगा)
+          if [ ! -d "android" ]; then
+            flutter create . --org com.laxmitrading.app --platforms=android
+          fi
           
-          # यह पाइथन स्क्रिप्ट 100% गारंटी के साथ सही जगह इंटरनेट परमिशन जोड़ देगी
-          python3 -c '
-          import os
-          path = "android/app/src/main/AndroidManifest.xml"
-          if os.path.exists(path):
+          # मैनिफेस्ट में पक्की इंटरनेट परमिशन जोड़ना
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            if ! grep -q "android.permission.INTERNET" "$MANIFEST"; then
+              python3 -c '
+              path = "android/app/src/main/AndroidManifest.xml"
               with open(path, "r") as f:
                   content = f.read()
-              if "android.permission.INTERNET" not in content:
-                  content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
-                  with open(path, "w") as f:
-                      f.write(content)
-                  print("SUCCESS: Internet permission added!")
-              else:
-                  print("ALREADY EXISTS: Internet permission is already there.")
-          else:
-              print("ERROR: AndroidManifest.xml not found!")
-          '
+              content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
+              with open(path, "w") as f:
+                  f.write(content)
+              '
+            fi
+          fi
       - name: 2. Get Flutter packages
         script: |
           flutter pub get
