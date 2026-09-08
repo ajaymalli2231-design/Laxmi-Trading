@@ -1,5 +1,5 @@
 name: laxmi_trading
-description: "Laxmi Trading Platform"
+description: "A professional trading app featuring Indian indices, option chain, and live market data."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,8 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   http: ^1.2.0
+  share_plus: ^10.0.0
 
 dev_dependencies:
   flutter_test:
