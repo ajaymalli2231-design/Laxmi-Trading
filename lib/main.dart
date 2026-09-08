@@ -23,7 +23,7 @@ class LaxmiTradingApp extends StatelessWidget {
   }
 }
 
-// 1. लॉगिन स्क्रीन (Ajay900 पासवर्ड के साथ)
+// 1. लॉगिन स्क्रीन (मोबाइल नंबर और पासवर्ड Ajay900)
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (phone.isNotEmpty && password == "Ajay900") {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const MainDashboard()),
+        MaterialPageRoute(builder: (context) => MainDashboard(userPhone: phone)),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,13 +63,13 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Icon(Icons.trending_up, size: 80, color: Colors.blueAccent),
                 const SizedBox(height: 10),
-                const Text('Laxmi Trading', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                const Text('Laxmi Trading Live', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 30),
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: 'Friend / Mobile Number',
+                    labelText: 'Mobile Number',
                     prefixIcon: const Icon(Icons.phone),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
                     onPressed: handleLogin,
-                    child: const Text('Login to Trading', style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: const Text('Login', style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
               ],
@@ -103,9 +103,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// 2. मेन डैशबोर्ड (वॉचलिस्ट, ऑप्शन चेन, ट्रेड्स, अकाउंट)
+// ग्लोबल फंड वेरिएबल ताकि एडमिन इसे कंट्रोल कर सके
+double globalUserFunds = 50000.0;
+
 class MainDashboard extends StatefulWidget {
-  const MainDashboard({super.key});
+  final String userPhone;
+  const MainDashboard({super.key, required this.userPhone});
 
   @override
   State<MainDashboard> createState() => _MainDashboardState();
@@ -113,14 +116,14 @@ class MainDashboard extends StatefulWidget {
 
 class _MainDashboardState extends State<MainDashboard> {
   int _currentIndex = 0;
-  String selectedTab = 'NSE'; // डिफ़ॉल्ट NSE इंडिसेज
+  String selectedTab = 'NSE';
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       buildWatchlistTab(),
-      buildTradesTab(),
-      buildPortfolioTab(),
+      const Center(child: Text('Active & Closed Trades', style: TextStyle(fontSize: 18))),
+      const Center(child: Text('Portfolio Holdings', style: TextStyle(fontSize: 18))),
       buildAccountTab(context),
     ];
 
@@ -159,13 +162,27 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  // वॉचलिस्ट टैब (MCX, NSE, OPT, CRYPTO)
+  // वॉचलिस्ट और इंडिसेज/ऑप्शन चेन टैब
   Widget buildWatchlistTab() {
     return Column(
       children: [
+        // फंड डिस्प्ले बार
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          color: const Color(0xFF1E293B),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('User: ${widget.userPhone}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text('Available Funds: ₹${globalUserFunds.toStringAsFixed(2)}', 
+                style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
+        ),
         // कैटेगरी बार
         Container(
-          color: const Color(0xFF1E293B),
+          color: const Color(0xFF162032),
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -189,16 +206,6 @@ class _MainDashboardState extends State<MainDashboard> {
             children: getListItemsForCategory(),
           ),
         ),
-        Container(
-          width: double.infinity,
-          color: Colors.red[900],
-          padding: const EdgeInsets.all(6),
-          child: const Text(
-            'This is Demo Account',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-        )
       ],
     );
   }
@@ -270,7 +277,7 @@ class _MainDashboardState extends State<MainDashboard> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         title: Text('$type Order Triggered'),
-        content: Text('$type order placed for $symbol at $price'),
+        content: Text('$type order placed successfully for $symbol at $price'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))
         ],
@@ -278,26 +285,78 @@ class _MainDashboardState extends State<MainDashboard> {
     );
   }
 
-  Widget buildTradesTab() => const Center(child: Text('Active & Closed Trades', style: TextStyle(fontSize: 18)));
-  Widget buildPortfolioTab() => const Center(child: Text('Portfolio Holdings', style: TextStyle(fontSize: 18)));
-
-  // 3. अकाउंट टैब (फ्रेंड को ऐप का लिंक शेयर करने के लिए)
+  // अकाउंट टैब: ऐप शेयरिंग और अजय (Admin) का फंड कंट्रोल पैनल
   Widget buildAccountTab(BuildContext context) {
+    final TextEditingController fundController = TextEditingController();
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
         children: [
-          const Text('User Profile', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text('Profile & Admin Controls', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 15),
-          const Text('Logged in with Password: Ajay900', style: TextStyle(color: Colors.grey)),
+          Text('Logged In Phone: ${widget.userPhone}', style: const TextStyle(color: Colors.grey, fontSize: 16)),
+          const SizedBox(height: 25),
+          
+          // अजय एडमिन फंड कण्ट्रोल सेक्शन
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blueAccent),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ajay Admin Fund Control', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: fundController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Enter Amount to Add/Subtract',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      onPressed: () {
+                        setState(() {
+                          double val = double.tryParse(fundController.text) ?? 0;
+                          globalUserFunds += val;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funds Increased Successfully')));
+                      },
+                      child: const Text('Add Fund'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          double val = double.tryParse(fundController.text) ?? 0;
+                          globalUserFunds -= val;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funds Decreased Successfully')));
+                      },
+                      child: const Text('Reduce Fund'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 30),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, minimumSize: const Size(double.infinity, 48)),
             icon: const Icon(Icons.share, color: Colors.white),
             label: const Text('Share App with Friend', style: TextStyle(color: Colors.white, fontSize: 16)),
             onPressed: () {
-              Share.share('Laxmi Trading App डाउनलोड करें और ट्रेडिंग शुरू करें! Login Password: Ajay900');
+              Share.share('Laxmi Trading App डाउनलोड करें! Login Password: Ajay900');
             },
           ),
         ],
