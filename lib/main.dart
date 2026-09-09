@@ -12,7 +12,6 @@ void main() async {
   String? savedName = prefs.getString('user_name');
   String? savedPin = prefs.getString('user_pin');
 
-  // अजय का बैंक विवरण लोड करना
   db.adminBankName = prefs.getString('admin_bank') ?? "Punjab National Bank";
   db.adminAccountNumber = prefs.getString('admin_acc') ?? "123456789012";
   db.adminIfsc = prefs.getString('admin_ifsc') ?? "PUNB0123456";
@@ -63,10 +62,8 @@ class AppDatabase {
   final Map<String, String> customerNames = {};
   final Map<String, List<TradePosition>> userPositions = {};
 
-  // हर यूजर का अपना बैंक अकाउंट (केवल Deposit के लिए)
   final Map<String, Map<String, String>> userBankDetails = {};
 
-  // अजय का बैंक अकाउंट
   String adminBankName = "Punjab National Bank";
   String adminAccountNumber = "123456789012";
   String adminIfsc = "PUNB0123456";
@@ -77,7 +74,7 @@ final AppDatabase db = AppDatabase();
 
 class TradePosition {
   final String symbol;
-  final String type; // BUY or SELL
+  final String type;
   final double entryPrice;
   double currentPrice;
   final int qty;
@@ -413,7 +410,7 @@ class _MainDashboardState extends State<MainDashboard> {
     final List<Widget> pages = [
       buildWatchlistTab(currentFund),
       PositionsTab(userPhone: widget.userPhone),
-      UserDepositTab(userPhone: widget.userPhone), // यूजर केवल डिपॉजिट बैंक जोड़ सकता है
+      UserDepositTab(userPhone: widget.userPhone),
       AccountTab(userName: widget.userName, userPhone: widget.userPhone, currentFund: currentFund),
     ];
 
@@ -487,7 +484,6 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// जेनेरिक ऑप्शन चेन स्क्रीन
 class GenericOptionChainScreen extends StatefulWidget {
   final String indexName;
   final String userPhone;
@@ -677,7 +673,6 @@ class _GenericOptionChainScreenState extends State<GenericOptionChainScreen> {
   }
 }
 
-// Positions Tab
 class PositionsTab extends StatefulWidget {
   final String userPhone;
   const PositionsTab({super.key, required this.userPhone});
@@ -794,7 +789,6 @@ class _PositionsTabState extends State<PositionsTab> {
   }
 }
 
-// ----------------- User Deposit Tab (केवल यूजर का बैंक जोड़ने के लिए) -----------------
 class UserDepositTab extends StatefulWidget {
   final String userPhone;
   const UserDepositTab({super.key, required this.userPhone});
@@ -925,7 +919,6 @@ class AccountTab extends StatelessWidget {
   }
 }
 
-// ----------------- Admin Dashboard (पासवर्ड प्रोटेक्टेड विथड्रॉल और बैंक सेटिंग्स) -----------------
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -939,7 +932,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final TextEditingController ifscController = TextEditingController(text: db.adminIfsc);
   final TextEditingController holderController = TextEditingController(text: db.adminHolderName);
 
-  // एडमिन विथड्रॉल कंट्रोलर्स
   final TextEditingController targetPhoneController = TextEditingController();
   final TextEditingController withdrawAmtController = TextEditingController();
   final TextEditingController adminPasswordController = TextEditingController();
@@ -969,7 +961,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     double amt = double.tryParse(withdrawAmtController.text.trim()) ?? 0;
     String password = adminPasswordController.text.trim();
 
-    // पासवर्ड चेक (यहाँ अजय का मास्टर पासवर्ड 'Ajay900' चेक होगा)
     if (password != "Ajay900") {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('गलत पासवर्ड! विथड्रॉल केवल अजय के पासवर्ड से संभव है।')),
@@ -992,7 +983,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
 
-    // यूजर के फंड से राशि काटना
     setState(() {
       db.customerFunds[phone] = currentFund - amt;
     });
@@ -1089,7 +1079,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 String p = phones[index];
                 return ListTile(
                   title: Text(db.customerNames[p] ?? ''),
-                  subtitle: Text('Mobile: $p | फंड: ₹${db.customerFunds[p]}'),
+                  subtitle: Text('Mobile: $p | फंड्स: ₹${db.customerFunds[p]}'),
                 );
               },
             ),
