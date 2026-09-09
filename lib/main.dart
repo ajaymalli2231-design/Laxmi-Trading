@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -37,7 +36,7 @@ class LaxmiTradingApp extends StatelessWidget {
         initialScreen = PinSetupScreen(userName: savedName!, userPhone: savedPhone!);
       }
     } else {
-      initialScreen = const PermissionScreen();
+      initialScreen = const LoginScreen();
     }
 
     return MaterialApp(
@@ -90,81 +89,6 @@ class TradePosition {
     double diff = currentPrice - entryPrice;
     if (type == 'SELL') diff = entryPrice - currentPrice;
     return diff * qty;
-  }
-}
-
-class PermissionScreen extends StatefulWidget {
-  const PermissionScreen({super.key});
-
-  @override
-  State<PermissionScreen> createState() => _PermissionScreenState();
-}
-
-class _PermissionScreenState extends State<PermissionScreen> {
-  bool _isLoading = false;
-
-  Future<void> requestPermissions() async {
-    setState(() => _isLoading = true);
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.contacts,
-      Permission.phone,
-    ].request();
-
-    bool contactsGranted = statuses[Permission.contacts] == PermissionStatus.granted;
-    bool phoneGranted = statuses[Permission.phone] == PermissionStatus.granted;
-    setState(() => _isLoading = false);
-
-    if (contactsGranted && phoneGranted) {
-      if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-    } else {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: const Text('परमिशन आवश्यक है'),
-          content: const Text('ऐप उपयोग करने के लिए परमिशन देना जरूरी है।'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('ठीक है', style: TextStyle(color: Colors.blueAccent)),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.security, size: 80, color: Colors.blueAccent),
-              const SizedBox(height: 20),
-              const Text('परमिशन सेटअप', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              const Text('Laxmi Trading ऐप शुरू करने के लिए परमिशन Allow करें।', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                  onPressed: _isLoading ? null : requestPermissions,
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Allow & Continue', style: TextStyle(fontSize: 16, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -240,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 25),
                 SizedBox(
-                width: double.infinity,
+                  width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
@@ -599,7 +523,7 @@ class _GenericOptionChainScreenState extends State<GenericOptionChainScreen> {
                         db.userPositions[widget.userPhone]?.add(TradePosition(
                           symbol: '${widget.indexName} ${strike.toInt()} $type', 
                           type: 'SELL', 
-                          entryPrice: price, 
+                  entryPrice: price, 
                           currentPrice: price, 
                           qty: widget.lotSize,
                         ));
@@ -1077,7 +1001,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               itemBuilder: (context, index) {
                 String p = phones[index];
                 return ListTile(
-                  title: Text(db.customerNames[p] ?? ''),
+         title: Text(db.customerNames[p] ?? ''),
                   subtitle: Text('Mobile: $p | फंड्स: ₹${db.customerFunds[p]}'),
                 );
               },
