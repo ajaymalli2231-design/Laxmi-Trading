@@ -61,7 +61,6 @@ class AppDatabase {
   final Map<String, double> customerFunds = {};
   final Map<String, String> customerNames = {};
   final Map<String, List<TradePosition>> userPositions = {};
-
   final Map<String, Map<String, String>> userBankDetails = {};
 
   String adminBankName = "Punjab National Bank";
@@ -241,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 25),
                 SizedBox(
-                  width: double.infinity,
+                width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
